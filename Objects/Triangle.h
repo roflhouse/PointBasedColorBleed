@@ -10,6 +10,7 @@
 #define TRIANGLE_H 
 #include "ObjectInfo.h"
 #include "../Util/vec3.h"
+#include <stdio.h>
 
 typedef struct Triangle {
    float distance;
@@ -18,4 +19,6 @@ typedef struct Triangle {
    vec3 c;
    vec3 normal;
 } Triangle;
+
+Triangle parseTriangle( FILE *file );
 #endif

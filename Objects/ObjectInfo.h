@@ -12,6 +12,7 @@
 #include "../Util/Color.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <stdio.h>
 
 typedef struct ColorInfo {
    float finish_ambient;

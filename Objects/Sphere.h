@@ -10,6 +10,7 @@
 #define SPHERE_H
 #include "../Util/vec3.h"
 #include "ObjectInfo.h"
+#include <stdio.h>
 
 typedef struct Sphere {
    float radius;
