@@ -13,7 +13,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-typedef struct ObjectInfo {
+typedef struct ColorInfo {
    float finish_ambient;
    float finish_diffuse;
    float finish_specular;
@@ -23,9 +23,15 @@ typedef struct ObjectInfo {
    float finish_ior;
    float pigment_f;
    Color pigment;
+} ColorInfo;
 
+typedef struct ObjectInfo {
+   ColorInfo colorInfo;
    BoundingBox *boundingbox;
    glm::mat4 transforms;
    glm::mat4 transpose;
 } ObjectInfo;
+void parseObjectPigment( FILE *file, ObjectInfo &info );
+void parseObjectFinish( FILE *file, ObjectInfo &info );
+void parseObjectTransforms( FILE *file, ObjectInfo &info );
 #endif

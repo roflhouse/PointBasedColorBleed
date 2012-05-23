@@ -15,5 +15,5 @@ typedef struct PointLight {
    vec3 pos;
 } PointLight;
 
-PointLight 
+PointLight parsePointLight( FILE *file );
 #endif

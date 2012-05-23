@@ -16,4 +16,5 @@ typedef struct Sphere {
    vec3 pos;
    ObjectInfo info;
 } Sphere;
+Sphere parseSphere(FILE *file);
 #endif

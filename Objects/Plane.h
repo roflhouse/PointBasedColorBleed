@@ -17,4 +17,6 @@ typedef struct Plane {
    vec3 point;
    ObjectInfo info;
 } Plane;
+
+Plane parsePlane( FILE *file );
 #endif

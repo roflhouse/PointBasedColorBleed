@@ -70,9 +70,9 @@ int createInitRays( Ray ***rays, int width, int height, Camera cam )
    }
    return width * height;
 }
-Camera *parseCamera( FILE *file )
+Camera parseCamera( FILE *file )
 {
-   Camera *cam = (Camera *) malloc (sizeof(Camera));
+   Camera cam;
    char cur = '\0';
    //location
    while (cur != '<')
@@ -82,10 +82,10 @@ Camera *parseCamera( FILE *file )
          return NULL;
    }
    //Read in location data
-   if(fscanf(file, " %f , %f , %f ", &(cam->location.x), &(cam->location.y), &(cam->location.z)) == EOF)
+   if(fscanf(file, " %f , %f , %f ", &(cam.pos.x), &(cam.pos.y), &(cam.pos.z)) == EOF)
       return NULL;
 
-   //printf( "location: %f, %f, %f\n", location.x, location.y, location.z );
+   printf( "location: %f, %f, %f\n", cam.pos.x, cam.pos.y, cam.pos.z );
    cur = '\0';
 
    //up
@@ -96,10 +96,10 @@ Camera *parseCamera( FILE *file )
          return NULL;
    }
    //Read in up data
-   if(fscanf(file, " %f , %f , %f ", &(cam->up.x), &(cam->up.y), &(cam->up.z)) == EOF)
+   if(fscanf(file, " %f , %f , %f ", &(cam.up.x), &(cam.up.y), &(cam.up.z)) == EOF)
       return NULL;
 
-   //printf( "up: %f, %f, %f\n", up.x, up.y, up.z );
+   printf( "up: %f, %f, %f\n", cam.up.x, cam.up.y, cam.up.z );
    cur = '\0';
 
    //right
@@ -110,10 +110,10 @@ Camera *parseCamera( FILE *file )
          return NULL;
    }
    //Read in right data
-   if(fscanf(file, " %f , %f , %f ", &(cam->right.x), &(cam->right.y), &(cam->right.z)) == EOF)
+   if(fscanf(file, " %f , %f , %f ", &(cam.right.x), &(cam.right.y), &(cam.right.z)) == EOF)
       return NULL;
 
-   //printf( "right: %f, %f, %f\n", right.x, right.y, right.z );
+   printf( "right: %f, %f, %f\n", cam.right.x, cam.right.y, cam.right.z );
    cur = '\0';
 
    //look_at
@@ -124,10 +124,10 @@ Camera *parseCamera( FILE *file )
          return NULL;
    }
    //Read in look_at data
-   if(fscanf(file, " %f , %f , %f ", &(cam->lookat.x), &(cam->lookat.y), &(cam->lookat.z)) == EOF)
+   if(fscanf(file, " %f , %f , %f ", &(cam.lookat.x), &(cam.lookat.y), &(cam.lookat.z)) == EOF)
       return NULL;
 
-   //printf( "look_at: %f, %f, %f\n", look_at.x, look_at.y, look_at.z );
+   printf( "look_at: %f, %f, %f\n", cam.lookat.x, cam.lookat.y, cam.lookat.z );
    cur = '\0';
 
    //Read in rest of the trash
@@ -136,9 +136,9 @@ Camera *parseCamera( FILE *file )
       if(fscanf(file, "%c", &cur) == EOF )
          return NULL;
    }
-   cam->l = -mag(cam->right)/2;
-   cam->r = mag(cam->right)/2;
-   cam->t = mag(cam->up)/2;
-   cam->b = -mag(cam->up)/2;
+   cam.l = -mag(cam.right)/2;
+   cam.r = mag(cam.right)/2;
+   cam.t = mag(cam.up)/2;
+   cam.b = -mag(cam.up)/2;
    return cam;
 }
