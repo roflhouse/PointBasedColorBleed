@@ -49,8 +49,8 @@ Plane parsePlane( FILE *file )
       exit(1);
    }
    printf( "distance: %f \n", distance );
-   distance = distance / normal.mag();
-   normal = normal.unit();
+   distance = distance / mag(normal);
+   normal = unit(normal);
    //A != 0
    if( normal.x > 0.0001 || normal.x < -0.0001 )
    {
@@ -78,17 +78,17 @@ Plane parsePlane( FILE *file )
       exit(1);
    }
    plane.info = createObjectInfo();
-   parsePigment( file, plane.info );
-   parseFinish( file, plane.info );
-   parseTransforms( file, plane.info );
+   parseObjectPigment( file, plane.info );
+   parseObjectFinish( file, plane.info );
+   parseObjectTransforms( file, plane.info );
 
    glm::vec4 n = glm::vec4( normal.x, normal.y, normal.z, 1 );
 
-   n = transpose * n ;
+   n = plane.info.transpose * n ;
    normal.x = n[0];
    normal.y = n[1];
    normal.z = n[2];
-   normal = normal.unit();
+   normal = unit(normal);
 
    plane.point = point;
    plane.normal = normal;

@@ -7,15 +7,10 @@
  *  @author Nick Feeney
  */
 
-#include "Object.h"
+#include "ObjectInfo.h"
 #include "LightSource.h"
-#include "../Util/BVH.h"
 
 #define PI 3.141592
-
-//Extern Things that use Object.h
-extern BVH *bvh;
-extern LightSource **lights;
 
 ObjectInfo createObjectInfo()
 {

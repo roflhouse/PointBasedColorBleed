@@ -10,9 +10,11 @@
 #define OBJECT_H
 #include "../Util/vec3.h"
 #include "../Util/Color.h"
+#include <stdlib.h>
+#include <stdio.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <stdio.h>
 
 typedef struct ColorInfo {
    float finish_ambient;
@@ -28,10 +30,11 @@ typedef struct ColorInfo {
 
 typedef struct ObjectInfo {
    ColorInfo colorInfo;
-   BoundingBox *boundingbox;
    glm::mat4 transforms;
    glm::mat4 transpose;
 } ObjectInfo;
+
+ObjectInfo createObjectInfo();
 void parseObjectPigment( FILE *file, ObjectInfo &info );
 void parseObjectFinish( FILE *file, ObjectInfo &info );
 void parseObjectTransforms( FILE *file, ObjectInfo &info );

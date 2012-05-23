@@ -15,18 +15,19 @@
 #include <fcntl.h>
 #include <iostream>
 #include <fstream>
+#include <math.h>
 
 #include "Header.h"
-#include "../Objects/Object.h"
+#include "Color.h"
 class Tga
 {
     public:
         Tga( short int w, short int h );
         ~Tga();
         int writeTga(std::string filename);
-        void setPixel(int width, int height, Object::pixel p);
+        void setPixel(int width, int height, Color p);
     private:
-        Object::pixel **data;
+        Color **data;
         Header *header;
         short int width;
         short int height;

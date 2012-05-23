@@ -11,6 +11,7 @@
 #include "ObjectInfo.h"
 #include "../Util/vec3.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct Triangle {
    float distance;

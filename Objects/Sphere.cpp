@@ -10,8 +10,8 @@
 
 Sphere parseSphere( FILE *file )
 {
-   Sphere sphere
-      char cur = '\0';
+   Sphere sphere;
+   char cur = '\0';
 
    //location
    while(cur != '<')
@@ -50,9 +50,9 @@ Sphere parseSphere( FILE *file )
 
 
    sphere.info = createObjectInfo();
-   parsePigment( file, sphere.info );
-   parseFinish( file, sphere.info );
-   parseTransforms( file, sphere.info );
+   parseObjectPigment( file, sphere.info );
+   parseObjectFinish( file, sphere.info );
+   parseObjectTransforms( file, sphere.info );
 
    return sphere;
 }

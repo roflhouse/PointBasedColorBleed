@@ -9,6 +9,9 @@
 #ifndef LIGHTSOURCE_H
 #define LIGHTSOURCE_H
 #include <stdio.h>
+#include <stdlib.h>
+#include "../Util/Color.h"
+#include "../Util/vec3.h"
 
 typedef struct PointLight {
    Color color;

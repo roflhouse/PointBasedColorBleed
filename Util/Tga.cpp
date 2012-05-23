@@ -13,10 +13,10 @@ Tga::Tga(short int w, short int h)
     width = w;
     height = h;
     header = new Header( width, height );
-    data = (Object::pixel **) malloc( sizeof(Object::pixel *) * height );
+    data = (Color **) malloc( sizeof(Color *) * height );
     for( int i = 0; i < height; i++ )
     {
-        data[i] = (Object::pixel *) malloc( sizeof(Object::pixel) * width );
+        data[i] = (Color *) malloc( sizeof(Color) * width );
         for( int j = 0; j < width; j++ )
         {
             data[i][j].r = 0;
@@ -34,7 +34,7 @@ Tga::~Tga()
     free( data );
     free( header );
 }
-void Tga::setPixel( int w, int h, Object::pixel p )
+void Tga::setPixel( int w, int h, Color p )
 {
     data[h][w].r += p.r * .25;
     data[h][w].g += p.g * .25;

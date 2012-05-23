@@ -23,6 +23,6 @@ typedef struct Camera {
    float l,r,b,t;
 } Camera;
 
-int createInitRays( Rays ***rays, int width, int height, Camera cam );
+//int createInitRays( Rays ***rays, int width, int height, Camera cam );
 Camera *parseCamera( FILE *file );
 #endif
