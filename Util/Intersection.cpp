@@ -1,3 +1,5 @@
+#include "Intersection.h"
+
 Color calcColor( Intersection inter, Scene scene )
 {
    Color ret;

@@ -7,6 +7,8 @@
  *  @author Nick Feeney
  */
 
+#ifndef INTERSECTION_H
+#define INTERSECTION_H
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -15,7 +17,6 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
-#include "../Objects/Objects.h"
 #include "vec3.h"
 
 typedef struct Intersection {
@@ -25,3 +26,4 @@ typedef struct Intersection {
    float hit;
    
 } Intersection;
+#endif

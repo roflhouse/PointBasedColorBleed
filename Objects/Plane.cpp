@@ -7,7 +7,48 @@
  *  @author Nick Feeney
  */
 #include "Plane.h"
+float planeHitTest(const Plane &plane, const Ray &ray )
+{
+   vec3 direction = unit(ray.dir);
+   vec3 position;
+   glm::vec4 dir = glm::vec4(direction.x, direction.y, direction.z, 0.0f);
+   glm::vec4 pos = glm::vec4(ray.pos.x, ray.pos.y, ray.pos.z, 1.0f);
+   dir = plane.info.transforms*dir;
+   pos = plane.info.transforms*pos;
+   direction.x = dir[0];
+   direction.y = dir[1];
+   direction.z = dir[2];
+   position.x = pos[0];
+   position.y = pos[1];
+   position.z = pos[2];
 
+   float vd = dot(plane.normal, direction);
+   if((distance < 0 && vd > -0.0001) || (distance > 0 && vd < 0.0001))
+      return -1;
+   float v0 = dot(newDirection(plane.point, position), plane.normal);
+   float t = v0/vd;
+   //make sure its pointing right directions
+   if( t < 0 )
+      t = -t;
+   if( t < 0.001)
+      return -1;
+   return t;
+
+}
+Intersection planeIntersection( const Plane &plane, const Ray &ray, float t )
+{
+   Intersection ret;
+   ret.hit = true;
+   ret.viewVector.x = -ray.dir.x;
+   ret.viewVector.y = -ray.dir.y;
+   ret.viewVector.z = -ray.dir.z;
+
+   ret.hitMark.x = ray.pos.x + ray.dir.x*t;
+   ret.hitMark.y = ray.pos.y + ray.dir.y*t;
+   ret.hitMark.z = ray.pos.z + ray.dir.z*t;
+   ret.normal = plane.normal;
+   return ret;
+}
 Plane parsePlane( FILE *file )
 {
    Plane plane;

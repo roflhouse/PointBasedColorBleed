@@ -1,15 +1,17 @@
 /**
  *  CPE 2010
  *  -------------------
- *  Program 
+ *  Program
  *
- *  Last Modified: 
+ *  Last Modified:
  *  @author Nick Feeney
  */
-#ifndef PLANE_H 
-#define PLANE_H 
+#ifndef PLANE_H
+#define PLANE_H
 #include "ObjectInfo.h"
 #include "../Util/vec3.h"
+#include "../Util/Ray.h"
+#include "../Util/Intersection.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -21,4 +23,6 @@ typedef struct Plane {
 } Plane;
 
 Plane parsePlane( FILE *file );
+float planeHitTest( const Plane &sphere, const Ray &ray );
+Intersection planeIntersection( const Plane &sphere, const Ray &ray, float t );
 #endif

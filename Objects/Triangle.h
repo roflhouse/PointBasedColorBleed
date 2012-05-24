@@ -22,5 +22,9 @@ typedef struct Triangle {
    ObjectInfo info;
 } Triangle;
 
+#include "../Util/Ray.h"
+#include "../Util/Intersection.h"
 Triangle parseTriangle( FILE *file );
+float triangleHitTest( const Triangle &triangle, const Ray &ray ); 
+Intersection triangleIntersection( const Triangle &triangle, const Ray &ray, float t );
 #endif

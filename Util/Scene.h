@@ -12,15 +12,14 @@
 #include "../Objects/Objects.h"
 
 typedef struct Scene {
-   Sphere *spheres;
-   Plane *planes;
-   Triangle *triangles;
-   PointLight *pointLights;
+   struct Sphere *spheres;
+   struct Plane *planes;
+   struct Triangle *triangles;
+   struct PointLight *pointLights;
    int numSpheres;
    int numTriangles;
    int numPlanes;
    int numPointLights;
-
-   Camera camera;
+   struct Camera camera;
 } Scene;
 #endif
