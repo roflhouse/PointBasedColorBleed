@@ -10,249 +10,100 @@
 
 #define PI 3.141592
 
-Ray::Ray( Vector startDir, Vector eyePos, int pixelW, int pixelH )
+int createInitRays( Ray **rays, int width, int height, Camera cam )
 {
-    w= pixelW;
-    h= pixelH;
-    position = eyePos;
-    direction = startDir.unit();
-    hit = false;
-    curDistance = -1;
-    mod = 1;
-    depth = 1;
-    refractionCur = 1;
-}
-//Construction for reflection rays
-Ray::Ray( Vector startDir, Vector eyePos, int pixelW, int pixelH, float modifier, int d )
-{
-    w= pixelW;
-    h= pixelH;
-    depth = d;
-    mod = modifier;
-    position = eyePos;
-    direction = startDir.unit();
-    hit = false;
-    curDistance = -1;
-    refractionCur = 1;
-}
-//Constructor for refraction rays
-Ray::Ray( Vector startDir, Vector eyePos, int pixelW, int pixelH, float modifier, int d,
-        float refraction )
-{
-    w= pixelW;
-    h= pixelH;
-    depth = d;
-    mod = modifier;
-    position = eyePos;
-    direction = startDir.unit();
-    hit = false;
-    curDistance = -1;
-    refractionCur = refraction;
-}
-Object::pixel Ray::castRay()
-{
-    Object::pixel color;
-    color.r = 0;
-    color.b = 0;
-    color.g = 0;
-    Object::rayInfo ret;
-    ret.obj = NULL;
-    ret.color.r = 0;
-    ret.color.b = 0;
-    ret.color.g = 0;
-    ret.camDistance = -1;
-    ret.hit = false;
-    Object::rayInfo intersect;
-    intersect.obj = NULL;
-    intersect.color.r = 0;
-    intersect.color.g = 0;
-    intersect.color.b = 0;
-    intersect.camDistance = -1;
-    intersect.hit = false;
-    float t;
+   vec3 right = unit(cam.right);
+   vec3 up = unit(cam.up);
+   float rightUnitX = right.x;
+   float rightUnitY = right.y;
+   float rightUnitZ = right.z;
+   float upUnitX = up.x;
+   float upUnitY = up.y;
+   float upUnitZ = up.z;
+   vec3 uv = unit(newDirection(cam.lookat, cam.pos));
 
-    //BVH tests
-    Object **possible;
-    int numPos = 0;
+   *rays = (Ray *) malloc( sizeof(Ray) *height*width );
+   for( int i = 0; i < height; i++)
+   {
+      for( int j = 0; j < width ; j ++ )
+      {
+         float u = cam.l + (cam.r-cam.l)*( (float)j)/(float)width;
+         float v = cam.b + (cam.t-cam.b)*( (float)i)/(float)height;
+         float w = -1;
+         int c = i*width + j;
 
-    numTriangles = 0;
-    bvh->getIntersections( direction, position, &possible, &numPos );
+         (*rays)[c].pos = cam.pos;
+         (*rays)[c].dir.x = u * rightUnitX + v * upUnitX + -w * uv.x;
+         (*rays)[c].dir.y = u * rightUnitY + v * upUnitY + -w * uv.y;
+         (*rays)[c].dir.z = u * rightUnitZ + v * upUnitZ + -w * uv.z;
+         (*rays)[c].i = i;
+         (*rays)[c].j = j;
+      }
+   }
+   return width * height;
+}
+void castRays( Scene scene, Ray *rays, int numRays, int width, int height, Color **buffer )
+{
+   for( int i = 0; i < numRays; i++ )
+   {
+      buffer[rays[i].i][rays[i].j] = raytrace( scene, rays[i] );
+   }
+}
+Color raytrace( Scene scene, Ray ray )
+{
+   Color color;
+   color.r = 0;
+   color.b = 0;
+   color.g = 0;
 
-    //Test all possible objects according to bvh
-    for( int i = 0; i < numPos; i++ )
-    {
-        t = possible[i]->hitTest( direction, position );
-        if( t > 0 )
-        {
-            ret = possible[i]->rayIntersect( direction, position, t );
-            if(ret.hit)
+   Intersection best;
+   best.hit = false;
+
+   float bestT;
+   float t;
+   for( int i = 0; i < scene.numPointLights; i++ )
+   {
+      PointLight light = scene.pointLights[i];
+      for( int j = 0; j < scene.numSpheres; j++ )
+      {
+         t = sphereHitTest( scene.spheres[j], ray ); 
+         if( t > 0 )
+         {
+            if( !best.hit || t < bestT )
             {
-                if(ret.camDistance < curDistance || hit == false)
-                {
-                    intersect = ret;
-                    curDistance = ret.camDistance;
-                    hit = true;
-                }
+               best = sphereIntersection( scene.spheres[j], ray, t );
+               bestT = t;
             }
-        }
-    }
-
-    if( numPos > 0 )
-        free( possible );
-    /*
-       for( int i = 0; i < numSpheres; i++ )
-       {
-       t = spheres[i]->hitTest( direction, position );
-       if( t > 0 )
-       {
-       ret = spheres[i]->rayIntersect( direction, position, t );
-       if(ret.hit)
-       {
-       if(ret.camDistance < curDistance || hit == false)
-       {
-       intersect = ret;
-       curDistance = ret.camDistance;
-       hit = true;
-       }
-       }
-       }
-       }*/
-    //boundingbox for plane is infinite so we dont put them in bvh
-    for ( int i = 0; i < numPlanes; i++ )
-    {
-        t = planes[i]->hitTest( direction, position );
-        if( t > 0 )
-        {
-            ret = planes[i]->rayIntersect( direction, position, t );
-            if(ret.hit)
+         }
+      }
+      for( int j = 0; j < scene.numTriangles; j++ )
+      {
+         t = triangleHitTest( scene.triangles[j], ray ); 
+         if( t > 0 )
+         {
+            if( !best.hit || t < bestT )
             {
-                if(ret.camDistance < curDistance || hit == false)
-                {
-                    intersect = ret;
-                    curDistance = ret.camDistance;
-                    hit = true;
-                }
+               best = triangleIntersection( scene.triangles[j], ray, t );
+               bestT = t;
             }
-        }
-    }
-    /*for ( int i = 0; i < numTriangles; i++ )
-      {
-      t = triangles[i]->hitTest( direction, position );
-      if( t > 0 )
-      {
-      ret = triangles[i]->rayIntersect( direction, position, t );
-      if(ret.hit)
-      {
-      if(ret.camDistance < curDistance || hit == false)
-      {
-      intersect = ret;
-      curDistance = ret.camDistance;
-      hit = true;
+         }
       }
-      }
-      }
-      }*/
-    if (hit && intersect.obj != NULL)
-        color = (intersect.obj)->getColor( intersect );
-
-    color.r = color.r * mod;
-    color.g = color.g * mod;
-    color.b = color.b * mod;
-    return color;
-}
-
-Object::pixel Ray::castRay(float it, int index, float tri_it, int triIndex)
-{
-    Object::pixel color;
-    color.r = 0;
-    color.b = 0;
-    color.g = 0;
-    Object::rayInfo ret;
-    Object::rayInfo intersect;
-    intersect.obj = NULL;
-    intersect.color.r = 0;
-    intersect.color.g = 0;
-    intersect.color.b = 0;
-    intersect.camDistance = -1;
-    intersect.hit = false;
-    float t;
-    //Cuda version
-    t = it;
-
-    //Hit Sphere
-    if( t > 0 )
-    {
-        intersect = spheres[index]->rayIntersect( direction, position, t );
-        curDistance = intersect.camDistance;
-        hit = true;
-    }
-    //Hit Triangle
-    else if (tri_it > 0 ) {
-        ret = triangles[triIndex]->rayIntersect(direction, position, tri_it );
-        if( curDistance < ret.camDistance )
-        {
-            intersect = ret;
-            curDistance = ret.camDistance;
-        }
-        hit = true;
-    }
-
-
-
-    /*for( int i = 0; i < numSpheres; i++ )
+      for( int j = 0; j < scene.numPlanes; j++ )
       {
-      t = spheres[i]->hitTest( direction, position );
-      if( t > 0 )
-      {
-      ret = spheres[i]->rayIntersect( direction, position, t );
-      if(ret.hit)
-      {
-      if(ret.camDistance < curDistance || hit == false)
-      {
-      intersect = ret;
-      curDistance = ret.camDistance;
-      hit = true;
-      }
-      }
-      }
-      }*/
-    for ( int i = 0; i < numPlanes; i++ )
-    {
-        t = planes[i]->hitTest( direction, position );
-        if( t > 0 )
-        {
-            ret = planes[i]->rayIntersect( direction, position, t );
-            if(ret.hit)
+         t = planeHitTest( scene.planes[j], ray ); 
+         if( t > 0 )
+         {
+            if( !best.hit || t < bestT )
             {
-                if(ret.camDistance < curDistance || hit == false)
-                {
-                    intersect = ret;
-                    curDistance = ret.camDistance;
-                    hit = true;
-                }
+               best = planeIntersection( scene.planes[j], ray, t );
+               bestT = t;
             }
-        }
-    }
-    /*for ( int i = 0; i < numTriangles; i++ )
-      {
-      t = triangles[i]->hitTest( direction, position );
-      if( t > 0 )
-      {
-      ret = triangles[i]->rayIntersect( direction, position, t );
-      if(ret.hit)
-      {
-      if(ret.camDistance < curDistance || hit == false)
-      {
-      intersect = ret;
-      curDistance = ret.camDistance;
-      hit = true;
+         }
       }
+      if( best.hit )
+      {
+         color = plus( color, directIllumination( best, light ) );
       }
-      }
-      }*/
-    if (hit && intersect.obj != NULL)
-    {
-        color = (intersect.obj)->getColor(intersect, 0);
-    }
-    return color;
+   }
+   return limitColor( color );
 }

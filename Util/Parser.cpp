@@ -16,15 +16,15 @@ Scene parseFile( std::string filename )
    int maxSpheres = 1000;
    int maxTriangles = 1000;
    int maxPlanes = 1000;
-   scene.maxPointLights = 10;
+   int maxPointLights = 10;
    scene.numPointLights = 0;
    scene.numSpheres = 0;
    scene.numTriangles = 0;
    scene.numPlanes = 0;
-   scene.spheres = (Sphere *)malloc( sizeof(Sphere) * scene.maxSpheres );
-   scene.triangles = (Triangle *)malloc( sizeof(Triangle) * scene.maxTriangles );
-   scene.planes = (Plane *)malloc( sizeof(Plane) * scene.maxSpheres );
-   scene.pointLights = (PointLight *)malloc( sizeof(PointLight) * scene.maxLights );
+   scene.spheres = (Sphere *)malloc( sizeof(Sphere) * maxSpheres );
+   scene.triangles = (Triangle *)malloc( sizeof(Triangle) * maxTriangles );
+   scene.planes = (Plane *)malloc( sizeof(Plane) * maxSpheres );
+   scene.pointLights = (PointLight *)malloc( sizeof(PointLight) * maxPointLights );
 
    //Open file for writing
    FILE *file = fopen(filename.c_str(), "r");
@@ -43,9 +43,7 @@ Scene parseFile( std::string filename )
          if( fscanf( file, "%c", &cur ) == EOF )
          {
             printf("End of File reached\n");
-            //Construct bvh Now that the input is finished
-            printf("BVH Created\n");
-            return;
+            return scene;
          }
       }
 
@@ -68,22 +66,22 @@ Scene parseFile( std::string filename )
       else if( cur == 'l' || cur == 'L' )
       {
          PointLight light = parsePointLight( file );
-         if( scene.numLights + 1 >= maxLights )
+         if( scene.numPointLights + 1 >= maxPointLights )
          {
-            maxLights = maxLights*10;
-            scene.pointLights = (PointLight *)realloc( scene.lights, sizeof(LightSource)*maxLights );
+            maxPointLights = maxPointLights*10;
+            scene.pointLights = (PointLight *)realloc( scene.pointLights, sizeof(PointLight)*maxPointLights );
          }
-         scene.lights[numLights] = light;
-         scene.numLights++;
+         scene.pointLights[scene.numPointLights] = light;
+         scene.numPointLights++;
       }
       else if( cur == 's' || cur == 'S' )
       {
          if( scene.numSpheres+1 >= maxSpheres )
          {
             maxSpheres = maxSpheres*1000;
-            spheres = (Sphere *) realloc( scene.spheres, sizeof(Sphere) * maxSpheres );
+            scene.spheres = (Sphere *) realloc( scene.spheres, sizeof(Sphere) * maxSpheres );
          }
-         scene.spheres[numSpheres] = parseSphere(file);
+         scene.spheres[scene.numSpheres] = parseSphere(file);
          scene.numSpheres++;
       }
       else if( cur == 'p' || cur == 'P' )
@@ -91,7 +89,7 @@ Scene parseFile( std::string filename )
          if( scene.numPlanes+1 >= maxPlanes )
          {
             maxPlanes = maxPlanes*1000;
-            scene.planes = (Plane *) realloc( scene.planes, scene.maxPlanes * sizeof(Plane) );
+            scene.planes = (Plane *) realloc( scene.planes, maxPlanes * sizeof(Plane) );
          }
          scene.planes[scene.numPlanes] = parsePlane(file);
          scene.numPlanes++;

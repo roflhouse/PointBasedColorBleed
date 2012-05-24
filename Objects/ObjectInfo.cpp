@@ -15,131 +15,21 @@
 ObjectInfo createObjectInfo()
 {
    ObjectInfo obj;
-   obj.pigment.r = 0;
-   obj.pigment.g = 0;
-   obj.pigment.b = 0;
-   obj.pigment_f = 0;
+   obj.colorInfo.pigment.r = 0;
+   obj.colorInfo.pigment.g = 0;
+   obj.colorInfo.pigment.b = 0;
+   obj.colorInfo.pigment_f = 0;
 
-   obj.finish_ambient = 0;
-   obj.finish_diffuse = 0;
-   obj.finish_specular = 0;
-   obj.finish_roughness = 0;
-   obj.finish_reflection = 0;
-   obj.finish_refraction = 0;
-   obj.finish_ior = 0;
+   obj.colorInfo.finish_ambient = 0;
+   obj.colorInfo.finish_diffuse = 0;
+   obj.colorInfo.finish_specular = 0;
+   obj.colorInfo.finish_roughness = 0;
+   obj.colorInfo.finish_reflection = 0;
+   obj.colorInfo.finish_refraction = 0;
+   obj.colorInfo.finish_ior = 0;
    obj.transforms = glm::mat4(1.0f);
    obj.transpose = glm::mat4(1.0f);
    return obj;
-}
-Color calcColor( ObjectInfo inter, Scene scene )
-{
-   Color ret;
-   ret.r = 0;
-   ret.b = 0;
-   ret.g = 0;
-
-   for( int i = 0; i < numLights; i++ )
-   {
-      PointLight *temp = lights[i];
-      vec3 lvec = unit(newDirection(temp->pos, inter.hitMark ));
-
-      float nlDot = dot(lvec, inter.normal );
-      bool inShadow = false;
-
-      //contruct possible hits for shadow ray using bvh
-
-      ObjectInfo shadowInter;
-      float lightDistance = distance(temp->pos, inter.hitMark );
-
-      /*
-         for( int j = 0; j < scene.numSpheres; j++)
-         {
-         float t = hitTest(scene.sphers[j], createRay(inter.hitMark, lvec) );
-         if( t > 0 )
-         {
-         info = sphereIntersection(sphere[i], shadowRay, t ); lvec, inter.hitMark, t );
-         if(info.hit)
-         {
-         if( info.camDistance < lightDistance )
-         {
-         inShadow = true;
-         free( possible );
-         break;
-         }
-         }
-         }
-         }
-         if( !inShadow )
-         {
-         for( int j = 0; j < numPlanes; j++)
-         {
-         float t = planes[j]->hitTest( lvec, inter.hitMark );
-         if( t > 0 )
-         {
-         info = planeIntersection( planes[i], lvec, inter.hitMark, t );
-         if(info.hit)
-         {
-         if( info.camDistance < lightDistance )
-         {
-         inShadow = true;
-         break;
-         }
-         }
-         }
-         }
-         }
-         */
-
-      if( !inShadow )
-      {
-         vec3 r;
-         r.x = -lvec.x + 2 * nlDot * inter.normal.x;
-         r.y = -lvec.y + 2 * nlDot * inter.normal.y;
-         r.z = -lvec.z + 2 * nlDot * inter.normal.z;
-         r = r.unit();
-         float rvDot = dot(r, inter.viewVector.unit());
-         if(nlDot < 0)
-            nlDot = 0;
-         if(rvDot < 0)
-            rvDot = 0;
-         float powRV = pow( rvDot, 1.0/finish_roughness );
-
-         int red =ret.r + temp->red * powRV*finish_specular;
-         int green = ret.g + temp->green* powRV*finish_specular;
-         int blue = ret.b + temp->blue * powRV*finish_specular;
-         if( red < 1.0)
-            ret.r = red;
-         else
-            ret.r = 1.0;
-         if( green < 1.0)
-            ret.g = green;
-         else
-            ret.g = 1.0;
-         if( blue < 1.0)
-            ret.b= blue;
-         else
-            ret.b = 1.0;
-
-         if(ret.r + pigment.r * temp->red * nlDot*finish_diffuse < 1.0)
-            ret.r+= pigment.r * temp->red * nlDot*finish_diffuse;
-         else
-            ret.r = 1.0;
-         if(ret.g + pigment.g * temp->green* nlDot*finish_diffuse < 1.0)
-            ret.g += pigment.g * temp->green * nlDot*finish_diffuse;
-         else
-            ret.g = 1.0;
-         if(ret.b + pigment.b * temp->blue * nlDot*finish_diffuse < 1.0)
-            ret.b+= pigment.b * temp->blue * nlDot*finish_diffuse;
-         else
-            ret.b = 1.0;
-      }
-   }
-   //1.5 not 1 to increase the directlight which will be balanced in Util/tga.cpp during gamma correction
-   float mod = 1.2 - finish_reflection - pigment_f*finish_refraction;
-   ret.r = ret.r * mod;
-   ret.g = ret.g * mod;
-   ret.b = ret.b * mod;
-   return ret;
 }
 void parseObjectPigment( FILE *file, ObjectInfo &info )
 {
@@ -196,9 +86,9 @@ void parseObjectPigment( FILE *file, ObjectInfo &info )
          exit(1);
       }
    }
-   printf( " pigment: %d, %d, %d\n",  info.colorInfo.pigment.r, info.colorInfo.pigment.g, info.colorInfo.pigment.b );
+   printf( " pigment: %f, %f, %f\n",  info.colorInfo.pigment.r, info.colorInfo.pigment.g, info.colorInfo.pigment.b );
 }
-int parseObjectFinish( FILE *file, ObjectInfo &info )
+void parseObjectFinish( FILE *file, ObjectInfo &info )
 {
    char cur = ' ';
    while( cur != '{' )
@@ -391,7 +281,7 @@ int parseObjectFinish( FILE *file, ObjectInfo &info )
             printf("Error parsing finish\n");
             exit(1);
          }
-         printf( "%f\n", info.color.info.finish_ior);
+         printf( "finish ior:%f\n", info.colorInfo.finish_ior);
          cur = ' ';
       }
       else if( cur == '}' )
@@ -406,7 +296,7 @@ int parseObjectFinish( FILE *file, ObjectInfo &info )
    }
    printf( "Finish: %f, %f, %f, %f, %f, %f, %f\n", info.colorInfo.finish_ambient, info.colorInfo.finish_diffuse,
          info.colorInfo.finish_specular, info.colorInfo.finish_roughness,
-         infor.colorInfo.finish_reflection, info.colorInfo.finish_refraction, info.colorInfo.finish_ior);
+         info.colorInfo.finish_reflection, info.colorInfo.finish_refraction, info.colorInfo.finish_ior);
 
 }
 void parseObjectTransforms( FILE *file, ObjectInfo &info )

@@ -66,19 +66,19 @@ Triangle parseTriangle( FILE *file )
 
     vec3 atob = newDirection(tri.b, tri.a);
     vec3 atoc = newDirection( tri.c, tri.a );
-    normal = unit(cross( atob, atoc ));
+    tri.normal = unit(cross( atob, atoc ));
 
-    parsePigment( file );
-    parseFinish( file );
-    parseTransforms( file );
-    normal = normal.unit();
-    glm::vec4 n = glm::vec4( normal.x, normal.y, normal.z, 1 );
+    tri.info = createObjectInfo();
+    parseObjectPigment( file, tri.info );
+    parseObjectFinish( file, tri.info );
+    parseObjectTransforms( file, tri.info );
+    glm::vec4 n = glm::vec4( tri.normal.x, tri.normal.y, tri.normal.z, 1 );
 
-    n = transpose * n ;
-    normal.x = n[0];
-    normal.y = n[1];
-    normal.z = n[2];
-    normal = normal.unit();
+    n = tri.info.transpose * n ;
+    tri.normal.x = n[0];
+    tri.normal.y = n[1];
+    tri.normal.z = n[2];
+    tri.normal = unit(tri.normal);
 
     //Parsing transforms uses up the ending bracket so no need to read to it
     return tri;

@@ -15,7 +15,6 @@
 #include <fcntl.h>
 #include <iostream>
 #include <fstream>
-#include <math.h>
 
 #include "Header.h"
 #include "Color.h"
@@ -26,6 +25,10 @@ class Tga
         ~Tga();
         int writeTga(std::string filename);
         void setPixel(int width, int height, Color p);
+        void setPixels( int width, int height, Color **p);
+        Color **getBuffer( );
+        int getWidth();
+        int getHeight();
     private:
         Color **data;
         Header *header;

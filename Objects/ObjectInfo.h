@@ -8,13 +8,15 @@
  */
 #ifndef OBJECT_H
 #define OBJECT_H
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "../Util/vec3.h"
 #include "../Util/Color.h"
 #include <stdlib.h>
 #include <stdio.h>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <string.h>
+#include <ctype.h>
 
 typedef struct ColorInfo {
    float finish_ambient;

@@ -19,6 +19,7 @@ typedef struct Triangle {
    vec3 b;
    vec3 c;
    vec3 normal;
+   ObjectInfo info;
 } Triangle;
 
 Triangle parseTriangle( FILE *file );

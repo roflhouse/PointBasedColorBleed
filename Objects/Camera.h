@@ -24,5 +24,5 @@ typedef struct Camera {
 } Camera;
 
 //int createInitRays( Rays ***rays, int width, int height, Camera cam );
-Camera *parseCamera( FILE *file );
+Camera parseCamera( FILE *file );
 #endif

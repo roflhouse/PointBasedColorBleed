@@ -16,12 +16,11 @@ Tga::Tga(short int w, short int h)
     data = (Color **) malloc( sizeof(Color *) * height );
     for( int i = 0; i < height; i++ )
     {
-        data[i] = (Color *) malloc( sizeof(Color) * width );
-        for( int j = 0; j < width; j++ )
-        {
-            data[i][j].r = 0;
-            data[i][j].g = 0;
-            data[i][j].b = 0;
+        data[i] = (Color *) malloc( width * sizeof(Color) );
+        for( int j = 0; j < width; j++ ){
+           data[i][j].r = 0;
+           data[i][j].b = 0;
+           data[i][j].g = 0;
         }
     }
 }
@@ -34,11 +33,33 @@ Tga::~Tga()
     free( data );
     free( header );
 }
+Color **Tga::getBuffer( )
+{
+   return data;
+}
+int Tga::getWidth( )
+{
+   return width;
+}
+int Tga::getHeight( )
+{
+   return height;
+}
 void Tga::setPixel( int w, int h, Color p )
 {
-    data[h][w].r += p.r * .25;
-    data[h][w].g += p.g * .25;
-    data[h][w].b += p.b * .25;
+    data[h][w] = p;
+}
+void Tga::setPixels( int w, int h, Color **p ){
+   if( w != width || h != height )
+   {
+      printf("Error setPixels missmatch with width %d: %d, height %d: %d\n", width, w, height, h );
+      exit(1);
+   }
+   for( int i = 0; i < h; i++ ){
+      for( int j = 0; j < w; j++ ){
+         data[i][j] = p[i][j];
+      }
+   }
 }
 int Tga::writeTga( std::string filename )
 {
@@ -50,7 +71,7 @@ int Tga::writeTga( std::string filename )
         for( int j = 0; j < width; j++ )
         {
             //Gamma Correction
-            data[i][j].r = pow( data[i][j].r, .7 );
+            /*data[i][j].r = pow( data[i][j].r, .7 );
             data[i][j].b = pow( data[i][j].b, .7 );
             data[i][j].g = pow( data[i][j].g, .7 );
             if (data[i][j].r > 1.0)
@@ -59,6 +80,7 @@ int Tga::writeTga( std::string filename )
                 data[i][j].g = 1.0;
             if (data[i][j].b > 1.0)
                 data[i][j].b = 1.0;
+                */
 
             unsigned int red = data[i][j].r * 255;
             unsigned int green = data[i][j].g * 255;
