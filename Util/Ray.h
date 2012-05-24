@@ -10,6 +10,7 @@
 #ifndef RAY_H
 #define RAY_H
 #include "vec3.h"
+#include "Color.h"
 
 typedef struct Ray {
    vec3 pos;
@@ -17,10 +18,10 @@ typedef struct Ray {
    int i, j;
 } Ray;
 
-#include "Scene.h"
 #include "../Objects/Objects.h"
+#include "Scene.h"
 #include "Intersection.h"
-int createInitRays( Ray **rays, int width, int height, Camera cam );
-void castRays( Scene scene, Ray *rays, int numRays, int width, int height, Color **buffer);
-Color raytrace( Scene scene, Ray ray );
+int createInitRays( struct Ray **rays, int width, int height, struct Camera cam );
+void castRays( struct Scene scene, struct Ray *rays, int numRays, int width, int height, Color **buffer);
+Color raytrace( struct Scene scene, Ray ray );
 #endif

@@ -59,51 +59,48 @@ Color raytrace( Scene scene, Ray ray )
    Intersection best;
    best.hit = false;
 
-   float bestT;
+   float bestT = 10000;
    float t;
-   for( int i = 0; i < scene.numPointLights; i++ )
+   for( int j = 0; j < scene.numSpheres; j++ )
    {
-      PointLight light = scene.pointLights[i];
-      for( int j = 0; j < scene.numSpheres; j++ )
+      t = sphereHitTest( scene.spheres[j], ray );
+      if( t > 0 )
       {
-         t = sphereHitTest( scene.spheres[j], ray ); 
-         if( t > 0 )
+         if( !best.hit || t < bestT )
          {
-            if( !best.hit || t < bestT )
-            {
-               best = sphereIntersection( scene.spheres[j], ray, t );
-               bestT = t;
-            }
+            best = sphereIntersection( scene.spheres[j], ray, t );
+            bestT = t;
          }
       }
-      for( int j = 0; j < scene.numTriangles; j++ )
+   }
+   for( int j = 0; j < scene.numTriangles; j++ )
+   {
+      t = triangleHitTest( scene.triangles[j], ray );
+      if( t > 0 )
       {
-         t = triangleHitTest( scene.triangles[j], ray ); 
-         if( t > 0 )
+         if( !best.hit || t < bestT )
          {
-            if( !best.hit || t < bestT )
-            {
-               best = triangleIntersection( scene.triangles[j], ray, t );
-               bestT = t;
-            }
+            best = triangleIntersection( scene.triangles[j], ray, t );
+            bestT = t;
          }
       }
-      for( int j = 0; j < scene.numPlanes; j++ )
+   }
+   for( int j = 0; j < scene.numPlanes; j++ )
+   {
+      t = planeHitTest( scene.planes[j], ray );
+      if( t > 0 )
       {
-         t = planeHitTest( scene.planes[j], ray ); 
-         if( t > 0 )
+         if( !best.hit || t < bestT )
          {
-            if( !best.hit || t < bestT )
-            {
-               best = planeIntersection( scene.planes[j], ray, t );
-               bestT = t;
-            }
+            best = planeIntersection( scene.planes[j], ray, t );
+            bestT = t;
          }
       }
-      if( best.hit )
-      {
-         color = plus( color, directIllumination( best, light ) );
-      }
+   }
+   if( best.hit )
+   {
+      color = plus( color, directIllumination( best, scene ) );
+      printf("color: %f, %f, %f\n", color.r, color.g, color.b);
    }
    return limitColor( color );
 }

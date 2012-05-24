@@ -6,20 +6,23 @@ LD=g++
 CFLAGS= -Wall  -I "./glm" -g -c -O3 
 LDFLAGS= -Wall -I "./glm" -g -O3
 
-ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o
+ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o
 
 all:	$(ALL) PBC 
 
 PBC:	$(ALL)
 	$(CC) $(LDFLAGS) $(ALL) -o PBC 
 
-raytracer.o:	raytracer.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Color.o Util/Ray.o 
+PBCMain.o:	PBCMain.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Color.o Util/Ray.o 
 	$(CC) $(CFLAGS) -o $@ $<
 
 Util/Header.o:	Util/Header.cpp Util/Header.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 Util/Color.o:	Util/Color.cpp Util/Color.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+Util/Intersection.o:	Util/Intersection.cpp Util/Intersection.h Util/Color.h Util/vec3.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 Util/vec3.o:	Util/vec3.cpp Util/vec3.h

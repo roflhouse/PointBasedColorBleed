@@ -1,18 +1,19 @@
 #include "Color.h"
+#include <stdio.h>
 
 Color limitColor( const Color &in )
 {
    Color ret;
    if( in.r > 1.0 )
       ret.r = 1.0;
-   else if( in.r < 0 )
+   else if( in.r < 0.0 )
       ret.r = 0;
    else
       ret.r = in.r;
 
    if( in.g > 1.0 )
       ret.g = 1.0;
-   else if( in.g < 0 )
+   else if( in.g < 0.0 )
       ret.g = 0;
    else 
       ret.g = in.g;
@@ -32,5 +33,5 @@ Color plus( const Color &first, const Color &other )
    ret.r = first.r + other.r;
    ret.g = first.g + other.g;
    ret.b = first.b + other.b;
-   return limitColor( first );
+   return limitColor( ret );
 }
