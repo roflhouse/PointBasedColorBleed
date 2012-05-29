@@ -36,14 +36,12 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
     vd = dot(normal, direction);
    if(vd < 0.0001)
    {
-      printf("This\n");
       return -1;
    }
    float v0 = -(dot(newDirection(surfel.pos, position), surfel.normal) );
    float t = v0/vd;
    if( t < 0.001)
    {
-      printf("test\n");
       return -1;
    }
 

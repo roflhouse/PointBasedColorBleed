@@ -23,14 +23,18 @@ float planeHitTest(const Plane &plane, const Ray &ray )
    position.y = pos[1];
    position.z = pos[2];
 
+   float vd = dot(normal, direction);
+   if( vd < 0.0001 )
+   {
    float above = dot( normal, position ) + plane.distance;
    if( above > 0 )
    {
       normal.x = -normal.x;
       normal.y = -normal.y;
       normal.z = -normal.z;
+   vd = dot(normal, direction);
    }
-   float vd = dot(normal, direction);
+   }
    if( vd < 0.0001 )
       return -1;
    float v0 = -(dot(newDirection(plane.point, position), plane.normal) + plane.distance );
@@ -51,6 +55,9 @@ Intersection planeIntersection( const Plane &plane, const Ray &ray, float t )
    ret.hitMark.y = ray.pos.y + ray.dir.y*t;
    ret.hitMark.z = ray.pos.z + ray.dir.z*t;
    ret.normal = plane.normal;
+   ret.normal.x = -ret.normal.x;
+   ret.normal.y = -ret.normal.y;
+   ret.normal.z = -ret.normal.z;
    ret.colorInfo = plane.info.colorInfo;
    return ret;
 }
