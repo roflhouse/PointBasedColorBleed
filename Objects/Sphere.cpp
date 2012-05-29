@@ -35,10 +35,8 @@ float sphereHitTest( const Sphere &sphere, const Ray &ray )
    float t0 = (-B - sqrt(disc))/2;
    if ( t0 < 0.001)
    {
-      printf("1: %f\n", t0);
       t0 = (-B + sqrt(disc))/2;
    }
-      printf("2: %f\n",t0);
    if( t0 <= 0.001 )// && t0 >= -.00001 )
       return -1;
    return t0;

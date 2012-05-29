@@ -49,31 +49,26 @@ float triangleHitTest( const Triangle &triangle, const Ray &ray )
    float M = aa*ei_m_hf + bb*gf_m_di + cc*dh_m_eg;
    if( M  < 0.0001 && M > -0.0001 )
    {
-      printf("1");
       return -1;
    }
    t = -(f*ak_m_jb + e*jc_m_al + d* bl_m_kc)/M;
 
    if(t < 0.001)
    {
-      printf("2");
       return -1;
    }
 
    gamma = (i*ak_m_jb + h*jc_m_al + g* bl_m_kc)/M;
    if(gamma < 0 || gamma > 1)
    {
-      printf("3");
       return -1;
    }
 
    beta = (j*ei_m_hf + k*gf_m_di + l*dh_m_eg)/M;
    if(beta < 0 || beta > (1 - gamma))
    {
-      printf("4");
       return -1;
    }
-      printf("\n5\n");
 
    return t;
 }

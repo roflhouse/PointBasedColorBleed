@@ -14,8 +14,28 @@ Color directIllumination( Intersection inter, Scene scene )
 
       float nlDot = dot(lvec, inter.normal );
       bool inShadow = false;
+      float lightDistance = distance( temp.pos, inter.hitMark );
 
       //contruct possible hits for shadow ray using bvh
+      for( int j = 0; j < scene.numSpheres; j++ )
+      {
+         Ray shadowRay;
+         shadowRay.pos = inter.hitMark;
+         shadowRay.dir = lvec;
+         float t = sphereHitTest(scene.spheres[j], shadowRay );
+         if( t > 0 )
+         {
+            Intersection info = sphereIntersection( scene.spheres[j], shadowRay, t );
+            if(info.hit)
+            {
+               if( distance( info.hitMark, inter.hitMark ) < lightDistance )
+               {
+                  inShadow = true;
+                  break;
+               }
+            }
+         }
+      }
 
       ObjectInfo shadowInter;
       if( !inShadow )
@@ -47,4 +67,55 @@ Color directIllumination( Intersection inter, Scene scene )
    ret.g = ret.g * mod;
    ret.b = ret.b * mod;
    return ret;
+}
+Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
+{
+   Surfel surfel;
+   surfel.pos = inter.pos;
+   surfel.normal = inter.normal;
+   surfel.color = directIllumination( inter, Scene scene );
+}
+
+/////Intersection Array//////////
+
+IntersectionArray createIntersectionArray()
+{
+   IntersectionArray IA;
+   IA.array = (Intersection *) malloc( sizeof(Intersection) * 1000 );
+   IA.num = 0;
+   IA.max = 1000;
+   return IA;
+}
+void growIA( IntersectionArray &in )
+{
+   in.max *= 5;
+   in.array = realloc( in.array, sizeof(Intersection) * in.max );
+   if( in.array = NULL )
+   {
+      printf("You have run out of memory\n");
+      exit(1);
+   }
+}
+void shrinkIA( IntersectionArray &in )
+{
+   in.max = in.num;
+   in.array = realloc( in.array, sizeof(Intersection) * in.max );
+   if( in.array = NULL )
+   {
+      printf("You have run out of memory\n");
+      exit(1);
+   }
+}
+void addToIA( IntersectionArray &in, const Intersection &intersection )
+{
+   if( in.num +1 >=in.max )
+   {
+      growIA( in );
+   }
+   in.array[in.num] = intersection;
+   in.num++;
+}
+void freeIntersectionArray( IntersectionArray &array )
+{
+   free( array.array );
 }

@@ -20,6 +20,7 @@ typedef struct Sphere {
    vec3 pos;
    ObjectInfo info;
 } Sphere;
+
 Sphere parseSphere(FILE *file);
 float sphereHitTest( const Sphere &sphere, const Ray &ray ); 
 Intersection sphereIntersection( const Sphere &sphere, const Ray &ray, float t );

@@ -28,6 +28,17 @@ typedef struct Intersection {
    float hit;
    ColorInfo colorInfo;
 } Intersection;
+typedef struct IntersectionArray {
+   Intersection *array;
+   int num;
+   int max;
+} IntersectionArray;
 #include "Scene.h"
-Color directIllumination( Intersection inter, Scene scene );
+Color directIllumination( const Intersection &inter, const Scene &scene );
+void growIA( IntersectionArray &array );
+void freeIntersectionArray( IntersectionArray &array );
+void addToIA( IntersectionArray in,const Intersection &intersection );
+void shrinkIA( IntersectionArray &in );
+IntersectionArray createIntersectionArray();
+
 #endif

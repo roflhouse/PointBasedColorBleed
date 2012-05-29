@@ -49,6 +49,48 @@ void castRays( Scene scene, Ray *rays, int numRays, int width, int height, Color
       buffer[rays[i].i][rays[i].j] = raytrace( scene, rays[i] );
    }
 }
+SurfelArray createSurfels( Scene scene, Ray *rays, int numRays )
+{
+   IntersectionArray IA = createIntersectionArray();
+
+   for( int i = 0; i < numRays; i++ )
+   {
+      collectIntersections( scene, rays[i], IA );
+   }
+   shrinkIA( IA );
+   SurfelArray SA = createSurfelArray();
+   for( int i = 0; i < IA.num; i++ )
+   {
+      addToSA( SA, intersectionToSurfel( IA.array[i], scene ) );
+   }
+}
+void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA )
+{
+   for( int j = 0; j < scene.numSpheres; j++ )
+   {
+      t = sphereHitTest( scene.spheres[j], ray );
+      if( t > 0 )
+      {
+         addToIA( IA, sphereIntersection( scene.spheres[j], ray, t ) );
+      }
+   }
+   for( int j = 0; j < scene.numTriangles; j++ )
+   {
+      t = triangleHitTest( scene.triangles[j], ray );
+      if( t > 0 )
+      {
+         addToIA( IA,  triangleIntersection( scene.triangles[j], ray, t ));
+      }
+   }
+   for( int j = 0; j < scene.numPlanes; j++ )
+   {
+      t = planeHitTest( scene.planes[j], ray );
+      if( t > 0 )
+      {
+         addToIA( IA, planeIntersection( scene.planes[j], ray, t ));
+      }
+   }
+}
 Color raytrace( Scene scene, Ray ray )
 {
    Color color;
@@ -100,7 +142,7 @@ Color raytrace( Scene scene, Ray ray )
    if( best.hit )
    {
       color = plus( color, directIllumination( best, scene ) );
-      printf("color: %f, %f, %f\n", color.r, color.g, color.b);
+      //printf("color: %f, %f, %f\n", color.r, color.g, color.b);
    }
    return limitColor( color );
 }
