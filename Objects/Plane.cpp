@@ -31,10 +31,6 @@ float planeHitTest(const Plane &plane, const Ray &ray )
       normal.z = -normal.z;
    }
    float vd = dot(normal, direction);
-   if( vd < 0.00010)
-   {
-      return -1;
-   }
    if( vd < 0.0001 )
       return -1;
    float v0 = -(dot(newDirection(plane.point, position), plane.normal) + plane.distance );

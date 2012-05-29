@@ -83,6 +83,13 @@ void castRays( const Scene &scene, Ray *rays, int numRays, Color **buffer )
       buffer[rays[i].i][rays[i].j] = raytrace( scene, rays[i] );
    }
 }
+void castRaysSphere( const Scene &scene, Ray *rays, int numRays, Color **buffer )
+{
+   for( int i = 0; i < numRays; i++ )
+   {
+      buffer[rays[i].i][rays[i].j] = raytrace2( scene, rays[i] );
+   }
+}
 void castRays( const SurfelArray &surfels, Ray *rays, int numRays, Color **buffer )
 {
    for( int i = 0; i < numRays; i++ )
@@ -107,23 +114,46 @@ SurfelArray createSurfels( const Scene &scene, Ray *rays, int numRays )
    shrinkSA( SA );
    return SA;
 }
+Scene createSurfelSpheres( const Scene &scene, Ray *rays, int numRays )
+{
+   IntersectionArray IA = createIntersectionArray();
+
+   for( int i = 0; i < numRays; i++ )
+   {
+      collectIntersections( scene, rays[i], IA );
+   }
+   shrinkIA( IA );
+
+   Scene scene2;
+   scene2.spheres = (Sphere *) malloc(sizeof( Sphere ) * IA.num );
+   scene2.numSpheres = IA.num;
+   for( int i = 0; i < IA.num; i++ )
+   {
+      //addToSA( SA, intersectionToSurfel( IA.array[i], scene ) );
+      scene2.spheres[i] = intersectionToSphere( IA.array[i], scene );
+   }
+   return scene2;
+}
 void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA )
 {
    float t;
-   for( int j = 0; j < scene.numSpheres; j++ )
-   {
-      t = sphereHitTest( scene.spheres[j], ray );
-      if( t > 0 )
-      {
-         addToIA( IA, sphereIntersection( scene.spheres[j], ray, t ) );
-      }
-   }
+   int i = 0;
    for( int j = 0; j < scene.numTriangles; j++ )
    {
       t = triangleHitTest( scene.triangles[j], ray );
       if( t > 0 )
       {
          addToIA( IA,  triangleIntersection( scene.triangles[j], ray, t ));
+         i++;
+      }
+   }
+   for( int j = 0; j < scene.numSpheres; j++ )
+   {
+      t = sphereHitTest( scene.spheres[j], ray );
+      if( t > 0 )
+      {
+         addToIA( IA, sphereIntersection( scene.spheres[j], ray, t ) );
+         i++;
       }
    }
    for( int j = 0; j < scene.numPlanes; j++ )
@@ -132,8 +162,10 @@ void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray
       if( t > 0 )
       {
          addToIA( IA, planeIntersection( scene.planes[j], ray, t ));
+         i++;
       }
    }
+   //printf("Total: %d %d\n", IA.num, i );
 }
 Color raytrace( const struct Scene &scene, const Ray &ray )
 {
@@ -190,6 +222,31 @@ Color raytrace( const struct Scene &scene, const Ray &ray )
    }
    return limitColor( color );
 }
+Color raytrace2( const struct Scene &SA, const Ray &ray )
+{
+   Color color;
+   color.r = 0;
+   color.b = 0;
+   color.g = 0;
+
+   bool hit = false;
+   float bestT = 10000;
+   float t;
+   for( int j = 0; j < SA.numSpheres; j++ )
+   {
+      t = sphereHitTest( SA.spheres[j], ray );
+      if( t > 0 )
+      {
+         if( !hit || t < bestT )
+         {
+            color = SA.spheres[j].info.colorInfo.pigment;
+            bestT = t;
+            hit = true;
+         }
+      }
+   }
+   return limitColor( color );
+}
 Color raytrace( const struct SurfelArray &SA, const Ray &ray )
 {
    Color color;
@@ -209,7 +266,9 @@ Color raytrace( const struct SurfelArray &SA, const Ray &ray )
          {
             color = SA.array[j].color;
             bestT = t;
+            hit = true;
          }
+         printf("Hit\n");
       }
    }
    return limitColor( color );

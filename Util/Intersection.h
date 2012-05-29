@@ -28,6 +28,7 @@ typedef struct Intersection {
    float hit;
    ColorInfo colorInfo;
 } Intersection;
+
 typedef struct IntersectionArray {
    Intersection *array;
    int num;
@@ -45,4 +46,5 @@ void shrinkIA( IntersectionArray &in );
 IntersectionArray createIntersectionArray();
 
 struct Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene );
+struct Sphere intersectionToSphere( const Intersection &inter, const Scene &scene );
 #endif

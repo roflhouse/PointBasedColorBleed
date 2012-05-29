@@ -48,25 +48,31 @@ int main(int argc, char *argv[])
 
    SurfelArray surfels = createSurfels( scene, rays, number ); 
    free( rays );
-   /*SurfelArray surfels = createSurfelArray();
+   /*
+
+   SurfelArray surfels = createSurfelArray();
    Surfel s;
    s.pos.x =0;
    s.pos.y =0;
-   s.pos.z =0;
+   s.pos.z =1;
 
-   s.normal.x = 0;
-   s.normal.y = 0;
+   s.normal.x = -1;
+   s.normal.y = -1;
    s.normal.z = 1;
+   s.normal = unit(s.normal);
    s.color.r = 1;
    s.color.g = 0;
    s.color.b = 0;
    s.radius = 1;
+   s.distance = -dot( s.normal, s.pos );
    addToSA( surfels, s );
-  */ 
+   */
 
    number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
-   //castRays( surfels, rays, number, buffer );
-   castRays( scene, rays, number, buffer );
+   Scene s2 = createSurfelSpheres( scene, rays, number );
+   castRays( surfels, rays, number, buffer );
+   //castRaysSphere( s2, rays, number, buffer );
+   //castRays( scene, rays, number, buffer );
 
    outfile.writeTga( "outfile.tga" );
    return EXIT_SUCCESS;

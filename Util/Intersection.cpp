@@ -71,12 +71,21 @@ Color directIllumination( const Intersection &inter, const Scene &scene )
 Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
 {
    Surfel surfel;
+   vec3 normal = unit(inter.normal);
    surfel.pos = inter.hitMark;
-   surfel.distance = -dot( inter.normal, inter.hitMark );
-   surfel.normal = inter.normal;
+   surfel.distance = dot( normal, inter.hitMark );
+   surfel.normal = normal;
    surfel.color = directIllumination( inter, scene );
-   surfel.radius = 1;
+   surfel.radius = .1;
    return surfel;
+}
+Sphere intersectionToSphere( const Intersection &inter, const Scene &scene )
+{
+   Sphere sphere;
+   sphere.pos = inter.hitMark;
+   sphere.info.colorInfo.pigment = directIllumination( inter, scene );
+   sphere.radius = .1;
+   return sphere;
 }
 
 /////Intersection Array//////////
