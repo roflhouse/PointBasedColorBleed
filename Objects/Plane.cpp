@@ -23,18 +23,25 @@ float planeHitTest(const Plane &plane, const Ray &ray )
    position.y = pos[1];
    position.z = pos[2];
 
+   float above = dot( normal, position ) + plane.distance;
+   if( above > 0 )
+   {
+      normal.x = -normal.x;
+      normal.y = -normal.y;
+      normal.z = -normal.z;
+   }
    float vd = dot(normal, direction);
-   if((distance < 0 && vd > -0.0001) || (distance > 0 && vd < 0.0001))
+   if( vd < 0.00010)
+   {
       return -1;
-   float v0 = dot(newDirection(plane.point, position), plane.normal);
+   }
+   if( vd < 0.0001 )
+      return -1;
+   float v0 = -(dot(newDirection(plane.point, position), plane.normal) + plane.distance );
    float t = v0/vd;
-   //make sure its pointing right directions
-   if( t < 0 )
-      t = -t;
    if( t < 0.001)
       return -1;
    return t;
-
 }
 Intersection planeIntersection( const Plane &plane, const Ray &ray, float t )
 {

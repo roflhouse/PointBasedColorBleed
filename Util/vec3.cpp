@@ -32,6 +32,10 @@ float distance(const vec3 &one, const vec3 &two )
 {
    return sqrt((one.x-two.x)*(one.x-two.x) + (one.y-two.y)*(one.y-two.y) + (one.z-two.z)*(one.z-two.z));
 }
+float squareDistance( const vec3 &one, const vec3 &two )
+{
+   return ((one.x-two.x)*(one.x-two.x) + (one.y-two.y)*(one.y-two.y) + (one.z-two.z)*(one.z-two.z));
+}
 vec3 newDirection(const vec3 &to, const vec3 &from )
 {
    vec3 newVec;

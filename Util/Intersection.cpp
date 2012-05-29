@@ -1,6 +1,6 @@
 #include "Intersection.h"
 
-Color directIllumination( Intersection inter, Scene scene )
+Color directIllumination( const Intersection &inter, const Scene &scene )
 {
    Color ret;
    ret.r = 0;
@@ -71,9 +71,12 @@ Color directIllumination( Intersection inter, Scene scene )
 Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
 {
    Surfel surfel;
-   surfel.pos = inter.pos;
+   surfel.pos = inter.hitMark;
+   surfel.distance = -dot( inter.normal, inter.hitMark );
    surfel.normal = inter.normal;
-   surfel.color = directIllumination( inter, Scene scene );
+   surfel.color = directIllumination( inter, scene );
+   surfel.radius = 1;
+   return surfel;
 }
 
 /////Intersection Array//////////
@@ -88,9 +91,9 @@ IntersectionArray createIntersectionArray()
 }
 void growIA( IntersectionArray &in )
 {
-   in.max *= 5;
-   in.array = realloc( in.array, sizeof(Intersection) * in.max );
-   if( in.array = NULL )
+   in.max = in.max * 5;
+   in.array = (Intersection *)realloc( in.array, sizeof(Intersection) * in.max );
+   if( in.array == NULL )
    {
       printf("You have run out of memory\n");
       exit(1);
@@ -99,8 +102,8 @@ void growIA( IntersectionArray &in )
 void shrinkIA( IntersectionArray &in )
 {
    in.max = in.num;
-   in.array = realloc( in.array, sizeof(Intersection) * in.max );
-   if( in.array = NULL )
+   in.array = (Intersection *)realloc( in.array, sizeof(Intersection) * in.max );
+   if( in.array == NULL )
    {
       printf("You have run out of memory\n");
       exit(1);

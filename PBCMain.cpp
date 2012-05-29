@@ -41,12 +41,32 @@ int main(int argc, char *argv[])
 
    Ray *rays;
 
-   int number = createInitRays( &rays, width_of_image, height_of_image, scene.camera );
+   int number = createInitRays( &rays, width_of_image, height_of_image, 1, scene.camera );
    Tga outfile( width_of_image, height_of_image );
 
    Color **buffer = outfile.getBuffer();
 
-   castRays( scene, rays, number, width_of_image, height_of_image, buffer );
+   SurfelArray surfels = createSurfels( scene, rays, number ); 
+   free( rays );
+   /*SurfelArray surfels = createSurfelArray();
+   Surfel s;
+   s.pos.x =0;
+   s.pos.y =0;
+   s.pos.z =0;
+
+   s.normal.x = 0;
+   s.normal.y = 0;
+   s.normal.z = 1;
+   s.color.r = 1;
+   s.color.g = 0;
+   s.color.b = 0;
+   s.radius = 1;
+   addToSA( surfels, s );
+  */ 
+
+   number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
+   //castRays( surfels, rays, number, buffer );
+   castRays( scene, rays, number, buffer );
 
    outfile.writeTga( "outfile.tga" );
    return EXIT_SUCCESS;

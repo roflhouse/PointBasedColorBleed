@@ -23,6 +23,7 @@ float dot(const vec3 &one, const vec3 &two);
 vec3 cross(const vec3 &one, const vec3 &two);
 float theta(const vec3 &one, const vec3 &two);
 float distance(const vec3 &one, const vec3 &two );
+float squareDistance(const vec3 &one, const vec3 &two );
 vec3 newDirection(const vec3 &to, const vec3 &from );
 vec3 unit(const vec3 &in);
 #endif

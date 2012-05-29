@@ -6,7 +6,7 @@ LD=g++
 CFLAGS= -Wall  -I "./glm" -g -c -O3 
 LDFLAGS= -Wall -I "./glm" -g -O3
 
-ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o
+ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o
 
 all:	$(ALL) PBC 
 
@@ -38,6 +38,9 @@ Objects/Triangle.o:	Objects/Triangle.cpp Objects/Triangle.h Objects/Objects.h Ut
 	$(CC) $(CFLAGS) -o $@ $<
 
 Objects/Plane.o:	Objects/Plane.cpp Objects/Plane.h Objects/Objects.h Util/vec3.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+Objects/Surfel.o:	Objects/Surfel.cpp Objects/Surfel.h Objects/Objects.h Util/vec3.h Util/Ray.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 Objects/LightSource.o:	Objects/LightSource.cpp Objects/LightSource.h Util/vec3.h 

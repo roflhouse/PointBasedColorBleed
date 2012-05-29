@@ -6,4 +6,5 @@
 #include "LightSource.h"
 #include "Camera.h"
 #include "ObjectInfo.h"
+#include "Surfel.h"
 #endif

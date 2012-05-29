@@ -10,7 +10,41 @@
 
 #define PI 3.141592
 
-int createInitRays( Ray **rays, int width, int height, Camera cam )
+int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
+{
+   width *= 2;
+   height *= 2;
+   vec3 right = unit(cam.right);
+   vec3 up = unit(cam.up);
+   float rightUnitX = right.x;
+   float rightUnitY = right.y;
+   float rightUnitZ = right.z;
+   float upUnitX = up.x;
+   float upUnitY = up.y;
+   float upUnitZ = up.z;
+   vec3 uv = unit(newDirection(cam.lookat, cam.pos));
+
+   *rays = (Ray *) malloc( sizeof(Ray) *height*width );
+   for( int i = 0; i < height; i++)
+   {
+      for( int j = 0; j < width ; j ++ )
+      {
+         float u = cam.l + (cam.r-cam.l)*((float)j)/(float)width;
+         float v = cam.b + (cam.t-cam.b)*((float)i)/(float)height;
+         float w = -1;
+         int c = i*width + j;
+
+         (*rays)[c].pos = cam.pos;
+         (*rays)[c].dir.x = growth*u * rightUnitX + growth * v * upUnitX + -w * uv.x;
+         (*rays)[c].dir.y = growth*u * rightUnitY + growth * v * upUnitY + -w * uv.y;
+         (*rays)[c].dir.z = growth*u * rightUnitZ + growth * v * upUnitZ + -w * uv.z;
+         (*rays)[c].i = i;
+         (*rays)[c].j = j;
+      }
+   }
+   return width * height;
+}
+int createDrawingRays( Ray **rays, int width, int height, Camera cam )
 {
    vec3 right = unit(cam.right);
    vec3 up = unit(cam.up);
@@ -42,14 +76,21 @@ int createInitRays( Ray **rays, int width, int height, Camera cam )
    }
    return width * height;
 }
-void castRays( Scene scene, Ray *rays, int numRays, int width, int height, Color **buffer )
+void castRays( const Scene &scene, Ray *rays, int numRays, Color **buffer )
 {
    for( int i = 0; i < numRays; i++ )
    {
       buffer[rays[i].i][rays[i].j] = raytrace( scene, rays[i] );
    }
 }
-SurfelArray createSurfels( Scene scene, Ray *rays, int numRays )
+void castRays( const SurfelArray &surfels, Ray *rays, int numRays, Color **buffer )
+{
+   for( int i = 0; i < numRays; i++ )
+   {
+      buffer[rays[i].i][rays[i].j] = raytrace( surfels, rays[i] );
+   }
+}
+SurfelArray createSurfels( const Scene &scene, Ray *rays, int numRays )
 {
    IntersectionArray IA = createIntersectionArray();
 
@@ -63,9 +104,12 @@ SurfelArray createSurfels( Scene scene, Ray *rays, int numRays )
    {
       addToSA( SA, intersectionToSurfel( IA.array[i], scene ) );
    }
+   shrinkSA( SA );
+   return SA;
 }
 void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA )
 {
+   float t;
    for( int j = 0; j < scene.numSpheres; j++ )
    {
       t = sphereHitTest( scene.spheres[j], ray );
@@ -91,7 +135,7 @@ void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray
       }
    }
 }
-Color raytrace( Scene scene, Ray ray )
+Color raytrace( const struct Scene &scene, const Ray &ray )
 {
    Color color;
    color.r = 0;
@@ -141,8 +185,32 @@ Color raytrace( Scene scene, Ray ray )
    }
    if( best.hit )
    {
-      color = plus( color, directIllumination( best, scene ) );
+      color = directIllumination( best, scene );
       //printf("color: %f, %f, %f\n", color.r, color.g, color.b);
+   }
+   return limitColor( color );
+}
+Color raytrace( const struct SurfelArray &SA, const Ray &ray )
+{
+   Color color;
+   color.r = 0;
+   color.b = 0;
+   color.g = 0;
+
+   bool hit = false;
+   float bestT = 10000;
+   float t;
+   for( int j = 0; j < SA.num; j++ )
+   {
+      t = surfelHitTest( SA.array[j], ray );
+      if( t > 0 )
+      {
+         if( !hit || t < bestT )
+         {
+            color = SA.array[j].color;
+            bestT = t;
+         }
+      }
    }
    return limitColor( color );
 }
