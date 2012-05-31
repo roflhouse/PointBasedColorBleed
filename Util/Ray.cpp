@@ -268,7 +268,6 @@ Color raytrace( const struct SurfelArray &SA, const Ray &ray )
             bestT = t;
             hit = true;
          }
-         printf("Hit\n");
       }
    }
    return limitColor( color );

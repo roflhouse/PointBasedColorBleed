@@ -26,18 +26,18 @@ float planeHitTest(const Plane &plane, const Ray &ray )
    float vd = dot(normal, direction);
    if( vd < 0.0001 )
    {
-   float above = dot( normal, position ) + plane.distance;
-   if( above > 0 )
-   {
-      normal.x = -normal.x;
-      normal.y = -normal.y;
-      normal.z = -normal.z;
-   vd = dot(normal, direction);
-   }
+      float above = dot( normal, position ) + plane.distance;
+      if( above > 0 )
+      {
+         normal.x = -normal.x;
+         normal.y = -normal.y;
+         normal.z = -normal.z;
+         vd = dot(normal, direction);
+      }
    }
    if( vd < 0.0001 )
       return -1;
-   float v0 = -(dot(newDirection(plane.point, position), plane.normal) + plane.distance );
+   float v0 = -(dot(position, plane.normal) + plane.distance );
    float t = v0/vd;
    if( t < 0.001)
       return -1;
@@ -47,17 +47,24 @@ Intersection planeIntersection( const Plane &plane, const Ray &ray, float t )
 {
    Intersection ret;
    ret.hit = true;
+   vec3 direction = unit( ray.dir );
+   glm::vec4 dir = glm::vec4(direction.x, direction.y, direction.z, 0.0f);
+   glm::vec4 pos = glm::vec4(ray.pos.x, ray.pos.y, ray.pos.z, 1.0f);
+   //dir = plane.info.transforms * dir;
+   //pos = plane.info.transforms * pos;
    ret.viewVector.x = -ray.dir.x;
    ret.viewVector.y = -ray.dir.y;
    ret.viewVector.z = -ray.dir.z;
 
-   ret.hitMark.x = ray.pos.x + ray.dir.x*t;
-   ret.hitMark.y = ray.pos.y + ray.dir.y*t;
-   ret.hitMark.z = ray.pos.z + ray.dir.z*t;
-   ret.normal = plane.normal;
-   ret.normal.x = -ret.normal.x;
-   ret.normal.y = -ret.normal.y;
-   ret.normal.z = -ret.normal.z;
+   ret.hitMark.x = pos[0] + dir[0]*t;
+   ret.hitMark.y = pos[1] + dir[1]*t;
+   ret.hitMark.z = pos[2] + dir[2]*t;
+   glm::vec4 n = glm::vec4( plane.normal.x, plane.normal.y, plane.normal.z, 1 );
+   //n = plane.info.transpose * n;
+   ret.normal.x = n[0];
+   ret.normal.z = n[1];
+   ret.normal.z = n[2];
+   ret.normal = unit(ret.normal);
    ret.colorInfo = plane.info.colorInfo;
    return ret;
 }

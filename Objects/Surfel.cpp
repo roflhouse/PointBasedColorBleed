@@ -24,8 +24,8 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
    float vd = dot(normal, direction);
    if( vd < 0.0001 )
    {
-      float above = dot( normal, position );
-      if( above < 0 )
+      float above = dot( normal, position ) + surfel.distance;
+      if( above > 0 )
       {
          normal.x = -normal.x;
          normal.y = -normal.y;
@@ -38,7 +38,7 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
    {
       return -1;
    }
-   float v0 = -(dot(newDirection(surfel.pos, position), surfel.normal) );
+   float v0 = -(dot(position, surfel.normal) + surfel.distance );
    float t = v0/vd;
    if( t < 0.001)
    {
