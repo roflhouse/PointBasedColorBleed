@@ -14,32 +14,25 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
    vec3 direction = unit(ray.dir);
    vec3 position;
    vec3 normal = unit(surfel.normal);
-   direction.x = -direction.x;
-   direction.y = -direction.y;
-   direction.z = -direction.z;
+   direction.x = direction.x;
+   direction.y = direction.y;
+   direction.z = direction.z;
    position.x = ray.pos.x;
    position.y = ray.pos.y;
    position.z = ray.pos.z;
 
+   normal.x *= -1;
+   normal.y *= -1;
+   normal.z *= -1;
    float vd = dot(normal, direction);
-   if( vd < 0.0001 )
-   {
-      float above = dot( normal, position ) + surfel.distance;
-      if( above > 0 )
-      {
-         normal.x = -normal.x;
-         normal.y = -normal.y;
-         normal.z = -normal.z;
-      }
-   }
-
-    vd = dot(normal, direction);
-   if(vd < 0.0001)
-   {
-      return -1;
-   }
-   float v0 = -(dot(position, surfel.normal) + surfel.distance );
+   //if(vd < 0.0001)
+   //{
+   //   return -1;
+   // }
+   float v0 = -(dot(position, normal) - surfel.distance );
    float t = v0/vd;
+   if( ray.i == 10 && ray.j == 10 )
+      printf("surfel ray dir:%f %f %f pos: %f %f %f  surf n: %f %f %f pos: %f %f %f,  t: %f dis: %f vd: %f v0: %f\n", direction.x, direction.y, direction.z, ray.pos.x, ray.pos.y, ray.pos.z, surfel.normal.x, surfel.normal.y, surfel.normal.z, surfel.pos.x, surfel.pos.y, surfel.pos.z, t, surfel.distance, vd, v0 );
    if( t < 0.001)
    {
       return -1;
@@ -49,11 +42,16 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
    hitMark.x = ray.pos.x + ray.dir.x*t;
    hitMark.y = ray.pos.y + ray.dir.y*t;
    hitMark.z = ray.pos.z + ray.dir.z*t;
+   float d = squareDistance( hitMark, surfel.pos );
 
-   if( squareDistance( hitMark, surfel.pos ) < surfel.radius*surfel.radius )
+   if( d < surfel.radius*surfel.radius )
+   {
       return t;
+   }
    else
+   {
       return -1;
+   }
 }
 
 SurfelArray createSurfelArray()

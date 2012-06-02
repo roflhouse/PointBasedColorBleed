@@ -120,7 +120,8 @@ Scene createSurfelSpheres( const Scene &scene, Ray *rays, int numRays )
 
    for( int i = 0; i < numRays; i++ )
    {
-      collectIntersections( scene, rays[i], IA );
+      if( rays[i].i  == 10 && rays[i].j == 10 )
+         collectIntersections( scene, rays[i], IA );
    }
    shrinkIA( IA );
 

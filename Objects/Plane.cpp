@@ -16,29 +16,36 @@ float planeHitTest(const Plane &plane, const Ray &ray )
    glm::vec4 pos = glm::vec4(ray.pos.x, ray.pos.y, ray.pos.z, 1.0f);
    dir = plane.info.transforms*dir;
    pos = plane.info.transforms*pos;
-   direction.x = -dir[0];
-   direction.y = -dir[1];
-   direction.z = -dir[2];
+   direction.x = dir[0];
+   direction.y = dir[1];
+   direction.z = dir[2];
    position.x = pos[0];
    position.y = pos[1];
    position.z = pos[2];
 
+   //float above = dot( normal, position ) + plane.distance;
+   //if( above < 0 )
+   //{
+     // normal.x = -normal.x;
+      //normal.y = -normal.y;
+      //normal.z = -normal.z;
+   //}
    float vd = dot(normal, direction);
-   if( vd < 0.0001 )
-   {
-      float above = dot( normal, position ) + plane.distance;
-      if( above > 0 )
-      {
-         normal.x = -normal.x;
-         normal.y = -normal.y;
-         normal.z = -normal.z;
-         vd = dot(normal, direction);
-      }
-   }
-   if( vd < 0.0001 )
-      return -1;
-   float v0 = -(dot(position, plane.normal) + plane.distance );
+   //if( vd < 0.0001 )
+   //   return -1;
+   //float v0 = -(dot(newDirection(plane.point, position), plane.normal) + plane.distance );
+   float v0 = -(dot(position, plane.normal) - plane.distance );
+   vec3 viewVector;
    float t = v0/vd;
+   viewVector.x = -ray.dir.x;
+   viewVector.y = -ray.dir.y;
+   viewVector.z = -ray.dir.z;
+   if( ray.i == 10 && ray.j == 10 )
+      printf("play ray dir:%f %f %f pos: %f %f %f  surf n: %f %f %f  t: %f dis: %f vd: %f v0: %f hit: %f %f %f \n", direction.x, direction.y, direction.z, ray.pos.x, ray.pos.y, ray.pos.z, plane.normal.x, plane.normal.y, plane.normal.z, t, plane.distance, vd, v0, viewVector.x, viewVector.y, viewVector.z );
+   if( ray.i == 10 && ray.j == 10 )
+   {
+      printf("this happened %f\n", t );
+   }
    if( t < 0.001)
       return -1;
    return t;
@@ -50,8 +57,8 @@ Intersection planeIntersection( const Plane &plane, const Ray &ray, float t )
    vec3 direction = unit( ray.dir );
    glm::vec4 dir = glm::vec4(direction.x, direction.y, direction.z, 0.0f);
    glm::vec4 pos = glm::vec4(ray.pos.x, ray.pos.y, ray.pos.z, 1.0f);
-   //dir = plane.info.transforms * dir;
-   //pos = plane.info.transforms * pos;
+   dir = plane.info.transforms * dir;
+   pos = plane.info.transforms * pos;
    ret.viewVector.x = -ray.dir.x;
    ret.viewVector.y = -ray.dir.y;
    ret.viewVector.z = -ray.dir.z;
@@ -59,12 +66,7 @@ Intersection planeIntersection( const Plane &plane, const Ray &ray, float t )
    ret.hitMark.x = pos[0] + dir[0]*t;
    ret.hitMark.y = pos[1] + dir[1]*t;
    ret.hitMark.z = pos[2] + dir[2]*t;
-   glm::vec4 n = glm::vec4( plane.normal.x, plane.normal.y, plane.normal.z, 1 );
-   //n = plane.info.transpose * n;
-   ret.normal.x = n[0];
-   ret.normal.z = n[1];
-   ret.normal.z = n[2];
-   ret.normal = unit(ret.normal);
+   ret.normal = plane.normal;
    ret.colorInfo = plane.info.colorInfo;
    return ret;
 }

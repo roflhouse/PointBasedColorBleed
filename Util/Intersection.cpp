@@ -73,10 +73,10 @@ Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
    Surfel surfel;
    vec3 normal = unit(inter.normal);
    surfel.pos = inter.hitMark;
-   surfel.distance = dot( normal, inter.hitMark );
+   surfel.distance = -dot( normal, inter.hitMark );
    surfel.normal = normal;
    surfel.color = directIllumination( inter, scene );
-   surfel.radius = 1;
+   surfel.radius = .1;
    return surfel;
 }
 Sphere intersectionToSphere( const Intersection &inter, const Scene &scene )
