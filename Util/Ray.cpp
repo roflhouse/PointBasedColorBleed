@@ -12,7 +12,6 @@
 
 int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
 {
-   printf(" Camera: %f %f %f %f\n", cam.l, cam.b, cam.r, cam.t );
    width *= 1;
    height *= 1;
    vec3 right = unit(cam.right);
