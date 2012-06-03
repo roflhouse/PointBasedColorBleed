@@ -267,7 +267,6 @@ Color raytrace( const struct SurfelArray &SA, const Ray &ray )
          if( !hit || t < bestT )
          {
             color = SA.array[j].color;
-            color.r = 1;
             bestT = t;
             hit = true;
          }

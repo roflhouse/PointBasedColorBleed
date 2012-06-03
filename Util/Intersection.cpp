@@ -6,7 +6,6 @@ Color directIllumination( const Intersection &inter, const Scene &scene )
    ret.r = 0;//inter.hitMark.x;
    ret.b = 0;//inter.hitMark.y;
    ret.g = 0;
-   return ret;
 
    for( int i = 0; i < scene.numPointLights; i++ )
    {
@@ -78,6 +77,7 @@ Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
    surfel.normal = normal;
    surfel.color = directIllumination( inter, scene );
    surfel.radius = .1;
+   printf("lights: %f, %f, %f\n", surfel.color.r, surfel.color.g, surfel.color.b );
    return surfel;
 }
 Sphere intersectionToSphere( const Intersection &inter, const Scene &scene )
