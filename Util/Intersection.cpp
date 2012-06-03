@@ -3,9 +3,10 @@
 Color directIllumination( const Intersection &inter, const Scene &scene )
 {
    Color ret;
-   ret.r = 0;
-   ret.b = 0;
+   ret.r = 0;//inter.hitMark.x;
+   ret.b = 0;//inter.hitMark.y;
    ret.g = 0;
+   return ret;
 
    for( int i = 0; i < scene.numPointLights; i++ )
    {
@@ -52,7 +53,7 @@ Color directIllumination( const Intersection &inter, const Scene &scene )
             rvDot = 0;
          float powRV = pow( rvDot, 1.0/inter.colorInfo.finish_roughness );
 
-         ret.r  =ret.r + temp.color.r * powRV*inter.colorInfo.finish_specular;
+         ret.r = ret.r + temp.color.r * powRV*inter.colorInfo.finish_specular;
          ret.g = ret.g + temp.color.g* powRV*inter.colorInfo.finish_specular;
          ret.b = ret.b + temp.color.b * powRV*inter.colorInfo.finish_specular;
          ret.r+= inter.colorInfo.pigment.r * temp.color.r * nlDot*inter.colorInfo.finish_diffuse;
@@ -73,7 +74,7 @@ Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
    Surfel surfel;
    vec3 normal = unit(inter.normal);
    surfel.pos = inter.hitMark;
-   surfel.distance = -dot( normal, inter.hitMark );
+   surfel.distance = dot( normal, inter.hitMark );
    surfel.normal = normal;
    surfel.color = directIllumination( inter, scene );
    surfel.radius = .1;

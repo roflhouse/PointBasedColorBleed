@@ -12,8 +12,9 @@
 
 int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
 {
-   width *= 2;
-   height *= 2;
+   printf(" Camera: %f %f %f %f\n", cam.l, cam.b, cam.r, cam.t );
+   width *= 1;
+   height *= 1;
    vec3 right = unit(cam.right);
    vec3 up = unit(cam.up);
    float rightUnitX = right.x;
@@ -266,6 +267,7 @@ Color raytrace( const struct SurfelArray &SA, const Ray &ray )
          if( !hit || t < bestT )
          {
             color = SA.array[j].color;
+            color.r = 1;
             bestT = t;
             hit = true;
          }

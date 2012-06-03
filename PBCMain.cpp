@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
    Ray *rays;
 
-   int number = createInitRays( &rays, width_of_image, height_of_image, 1, scene.camera );
+   int number = createInitRays( &rays, width_of_image, height_of_image, 1.0, scene.camera );
    Tga outfile( width_of_image, height_of_image );
 
    Color **buffer = outfile.getBuffer();
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
    */
 
    number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
-   Scene s2 = createSurfelSpheres( scene, rays, number );
+   //Scene s2 = createSurfelSpheres( scene, rays, number );
    castRays( surfels, rays, number, buffer );
    //castRaysSphere( s2, rays, number, buffer );
    //castRays( scene, rays, number, buffer );

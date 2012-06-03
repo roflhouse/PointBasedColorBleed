@@ -31,18 +31,21 @@ float planeHitTest(const Plane &plane, const Ray &ray )
       //normal.z = -normal.z;
    //}
    float vd = dot(normal, direction);
-   //if( vd < 0.0001 )
-   //   return -1;
-   //float v0 = -(dot(newDirection(plane.point, position), plane.normal) + plane.distance );
+   if( vd < 0.0001 && vd > -0.0001 )
+      return -1;
    float v0 = -(dot(position, plane.normal) - plane.distance );
    vec3 viewVector;
+   vec3 hitMark;
    float t = v0/vd;
    viewVector.x = -ray.dir.x;
    viewVector.y = -ray.dir.y;
    viewVector.z = -ray.dir.z;
+   hitMark.x = pos[0] + direction.x*t;
+   hitMark.y = pos[1] + dir[1]*t;
+   hitMark.z = pos[2] + dir[2]*t;
    if( ray.i == 10 && ray.j == 10 )
-      printf("play ray dir:%f %f %f pos: %f %f %f  surf n: %f %f %f  t: %f dis: %f vd: %f v0: %f hit: %f %f %f \n", direction.x, direction.y, direction.z, ray.pos.x, ray.pos.y, ray.pos.z, plane.normal.x, plane.normal.y, plane.normal.z, t, plane.distance, vd, v0, viewVector.x, viewVector.y, viewVector.z );
-   if( ray.i == 10 && ray.j == 10 )
+      printf("play ray dir:%f %f %f pos: %f %f %f  surf n: %f %f %f  t: %f dis: %f vd: %f v0: %f hit: %f %f %f \n", direction.x, direction.y, direction.z, ray.pos.x, ray.pos.y, ray.pos.z, plane.normal.x, plane.normal.y, plane.normal.z, t, plane.distance, vd, v0, hitMark.x, hitMark.y, hitMark.z );
+   if( ray.i == 30 && ray.j == 30 )
    {
       printf("this happened %f\n", t );
    }
