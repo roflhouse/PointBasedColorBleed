@@ -9,8 +9,8 @@
 
 #ifndef SURFEL_H
 #define SURFEL_H
-#include "../Util/Ray.h"
 #include "../Util/vec3.h"
+#include "../Util/Color.h"
 
 typedef struct Surfel {
    vec3 pos;
@@ -26,6 +26,7 @@ typedef struct SurfelArray {
    int max;
 } SurfelArray;
 
+#include "../Util/Ray.h"
 float surfelHitTest( const Surfel &surfel, const struct Ray &ray );
 SurfelArray createSurfelArray();
 void growSA( SurfelArray &array );

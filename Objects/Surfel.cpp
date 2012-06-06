@@ -52,11 +52,11 @@ SurfelArray createSurfelArray()
 }
 void growSA( SurfelArray &in )
 {
-   in.max *= 5;
+   in.max *= 3;
    in.array = (Surfel *)realloc( in.array, sizeof(Surfel) * in.max );
    if( in.array == NULL )
    {
-      printf("You have run out of memory\n");
+      printf("You have run out of memory realloc %d\n", in.max);
       exit(1);
    }
 }
@@ -64,9 +64,9 @@ void shrinkSA( SurfelArray &in )
 {
    in.max = in.num;
    in.array = (Surfel *)realloc( in.array, sizeof(Surfel) * in.max );
-   if( in.array == NULL )
+   if( in.array == NULL && in.num != 0 )
    {
-      printf("You have run out of memory\n");
+      printf("Shrinking Failed %d\n", in.max);
       exit(1);
    }
 }

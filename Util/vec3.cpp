@@ -61,3 +61,21 @@ vec3 unit(const vec3 &in)
    }
    return newVector;
 }
+void keepMin( vec3 &min, vec3 pos )
+{
+   if( min.x > pos.x )
+      min.x = pos.x;
+   if( min.y > pos.y )
+      min.y = pos.y;
+   if( min.z > pos.z )
+      min.z = pos.z;
+}
+void keepMax( vec3 &max, vec3 pos )
+{
+   if( max.x < pos.x )
+      max.x = pos.x;
+   if( max.y < pos.y )
+      max.y = pos.y;
+   if( max.z < pos.z )
+      max.z = pos.z;
+}

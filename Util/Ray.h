@@ -17,6 +17,10 @@ typedef struct Ray {
    vec3 dir;
    int i, j;
 } Ray;
+typedef struct TreeHitMark {
+   float t;
+   Color color;
+} TreeHitMark;
 
 #include "../Objects/Objects.h"
 #include "Scene.h"
@@ -30,7 +34,13 @@ void castRaysSphere( const struct Scene &scene, struct Ray *rays, int numRays, C
 void castRays( const struct SurfelArray &scene, struct Ray *rays, int numRays, Color **buffer);
 void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA );
 Color raytrace( const struct Scene &scene, const Ray &ray );
+Color raytrace( const struct TreeNode &Tree, const Ray &ray );
 Color raytrace2( const struct Scene &scene, const Ray &ray );
+#include "Octree.h"
+struct TreeNode createSurfelTree( const struct Scene &scene, Ray *rays, int numRays );
+void castRays( const struct TreeNode &scene, struct Ray *rays, int numRays, Color **buffer);
 #include "../Objects/Surfel.h"
 Color raytrace( const struct SurfelArray &scene, const Ray &ray );
+
+TreeHitMark transTree( TreeNode root, const Ray &ray );
 #endif

@@ -27,6 +27,7 @@
 #include "Util/Ray.h"
 #include "Util/Tga.h"
 #include "Util/Color.h"
+#include "Util/Octree.h"
 
 int width_of_image;
 int height_of_image;
@@ -34,6 +35,7 @@ char *parseCommandLine(int argc, char *argv[]);
 
 int main(int argc, char *argv[])
 {
+   printf("size: %u\n", sizeof(Ray) );
    char *filename = parseCommandLine(argc, argv);
    std::string str(filename);
 
@@ -46,7 +48,7 @@ int main(int argc, char *argv[])
 
    Color **buffer = outfile.getBuffer();
 
-   SurfelArray surfels = createSurfels( scene, rays, number ); 
+   TreeNode surfels = createSurfelTree( scene, rays, number ); 
    free( rays );
    /*
 

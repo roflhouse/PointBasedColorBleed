@@ -22,7 +22,10 @@ Color directIllumination( const Intersection &inter, const Scene &scene )
          Ray shadowRay;
          shadowRay.pos = inter.hitMark;
          shadowRay.dir = lvec;
-         float t = sphereHitTest(scene.spheres[j], shadowRay );
+         float_2 temp = sphereHitTest(scene.spheres[j], shadowRay );
+         float t = temp.t0;
+         if( t < 0 )
+            t = temp.t1;
          if( t > 0 )
          {
             Intersection info = sphereIntersection( scene.spheres[j], shadowRay, t );

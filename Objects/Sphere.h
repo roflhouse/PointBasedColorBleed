@@ -15,6 +15,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef struct float_2 {
+   float t0;
+   float t1;
+}float_2;
+
 typedef struct Sphere {
    float radius;
    vec3 pos;
@@ -22,6 +27,6 @@ typedef struct Sphere {
 } Sphere;
 
 Sphere parseSphere(FILE *file);
-float sphereHitTest( const Sphere &sphere, const Ray &ray ); 
+float_2 sphereHitTest( const Sphere &sphere, const Ray &ray ); 
 Intersection sphereIntersection( const Sphere &sphere, const Ray &ray, float t );
 #endif

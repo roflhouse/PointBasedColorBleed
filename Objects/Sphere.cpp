@@ -8,7 +8,7 @@
  */
 #include "Sphere.h"
 
-float sphereHitTest( const Sphere &sphere, const Ray &ray )
+float_2 sphereHitTest( const Sphere &sphere, const Ray &ray )
 {
    vec3 direction = unit( ray.dir );
    glm::vec4 dir = glm::vec4(direction.x, direction.y, direction.z, 0.0f);
@@ -29,17 +29,19 @@ float sphereHitTest( const Sphere &sphere, const Ray &ray )
    float B = 2*(xd *(x0-xc) + yd*(y0-yc) + zd*(z0-zc));
    float C = (x0-xc)*(x0-xc) + (y0-yc)*(y0-yc) + (z0-zc)*(z0-zc) - sphere.radius*sphere.radius;
    float disc = B*B -4*A*C;
+   float_2 ret;
+   ret.t0 = -1;
+   ret.t1 = -1;
    if(disc < .0001)
-      return -1;
+      return ret;
 
    float t0 = (-B - sqrt(disc))/2;
-   if ( t0 < 0.001)
-   {
-      t0 = (-B + sqrt(disc))/2;
-   }
-   if( t0 <= 0.001 )// && t0 >= -.00001 )
-      return -1;
-   return t0;
+   if ( t0 > 0.001)
+      ret.t0 = t0;
+   float t1 = (-B + sqrt(disc))/2;
+   if( t1 > 0.001 )
+      ret.t1 = t1;
+   return ret;
 }
 Intersection sphereIntersection( const Sphere &sphere, const Ray &ray, float t0 )
 {

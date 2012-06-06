@@ -97,6 +97,13 @@ void castRays( const SurfelArray &surfels, Ray *rays, int numRays, Color **buffe
       buffer[rays[i].i][rays[i].j] = raytrace( surfels, rays[i] );
    }
 }
+void castRays( const TreeNode &tree, Ray *rays, int numRays, Color **buffer )
+{
+   for( int i = 0; i < numRays; i++ )
+   {
+      buffer[rays[i].i][rays[i].j] = raytrace( tree, rays[i] );
+   }
+}
 SurfelArray createSurfels( const Scene &scene, Ray *rays, int numRays )
 {
    IntersectionArray IA = createIntersectionArray();
@@ -113,6 +120,33 @@ SurfelArray createSurfels( const Scene &scene, Ray *rays, int numRays )
    }
    shrinkSA( SA );
    return SA;
+}
+TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
+{
+   vec3 min;
+   vec3 max;
+   IntersectionArray IA = createIntersectionArray();
+
+   for( int i = 0; i < numRays; i++ )
+   {
+      collectIntersections( scene, rays[i], IA );
+   }
+   shrinkIA( IA );
+   SurfelArray SA = createSurfelArray();
+   for( int i = 0; i < IA.num; i++ )
+   {
+      if( i == 0 )
+      {
+         min = IA.array[i].hitMark;
+         max = min;
+      }
+      addToSA( SA, intersectionToSurfel( IA.array[i], scene ) );
+      keepMin( min, IA.array[i].hitMark );
+      keepMax( max, IA.array[i].hitMark );
+   }
+   shrinkSA( SA );
+
+   return createOctree( SA, min, max );
 }
 Scene createSurfelSpheres( const Scene &scene, Ray *rays, int numRays )
 {
@@ -150,10 +184,15 @@ void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray
    }
    for( int j = 0; j < scene.numSpheres; j++ )
    {
-      t = sphereHitTest( scene.spheres[j], ray );
-      if( t > 0 )
+      float_2 sphereT = sphereHitTest( scene.spheres[j], ray );
+      if( sphereT.t0 > 0 )
       {
-         addToIA( IA, sphereIntersection( scene.spheres[j], ray, t ) );
+         addToIA( IA, sphereIntersection( scene.spheres[j], ray, sphereT.t0 ) );
+         i++;
+      }
+      if( sphereT.t1 > 0 )
+      {
+         addToIA( IA, sphereIntersection( scene.spheres[j], ray, sphereT.t1 ) );
          i++;
       }
    }
@@ -182,12 +221,20 @@ Color raytrace( const struct Scene &scene, const Ray &ray )
    float t;
    for( int j = 0; j < scene.numSpheres; j++ )
    {
-      t = sphereHitTest( scene.spheres[j], ray );
-      if( t > 0 )
+      float_2 s = sphereHitTest( scene.spheres[j], ray );
+      if( s.t0 > 0 )
       {
-         if( !best.hit || t < bestT )
+         if( !best.hit || s.t0 < bestT )
          {
-            best = sphereIntersection( scene.spheres[j], ray, t );
+            best = sphereIntersection( scene.spheres[j], ray, s.t0 );
+            bestT = t;
+         }
+      }
+      if( s.t1 > 0 )
+      {
+         if( !best.hit || s.t1 < bestT )
+         {
+            best = sphereIntersection( scene.spheres[j], ray, s.t1 );
             bestT = t;
          }
       }
@@ -232,16 +279,25 @@ Color raytrace2( const struct Scene &SA, const Ray &ray )
 
    bool hit = false;
    float bestT = 10000;
-   float t;
+   float_2 s;
    for( int j = 0; j < SA.numSpheres; j++ )
    {
-      t = sphereHitTest( SA.spheres[j], ray );
-      if( t > 0 )
+      s = sphereHitTest( SA.spheres[j], ray );
+      if( s.t0 > 0 )
       {
-         if( !hit || t < bestT )
+         if( !hit || s.t0 < bestT )
          {
             color = SA.spheres[j].info.colorInfo.pigment;
-            bestT = t;
+            bestT = s.t0;
+            hit = true;
+         }
+      }
+      if( s.t1 > 0 )
+      {
+         if( !hit || s.t1 < bestT )
+         {
+            color = SA.spheres[j].info.colorInfo.pigment;
+            bestT = s.t1;
             hit = true;
          }
       }
@@ -272,4 +328,67 @@ Color raytrace( const struct SurfelArray &SA, const Ray &ray )
       }
    }
    return limitColor( color );
+}
+Color raytrace( const struct TreeNode &tree, const Ray &ray )
+{
+   Color color;
+   color.r = 0;
+   color.b = 0;
+   color.g = 0;
+
+   TreeHitMark cur = transTree( tree, ray );
+   if ( cur.t > 0 )
+      return cur.color;
+   else 
+      return color;
+}
+TreeHitMark transTree( TreeNode tree, const Ray &ray )
+{
+   if( testForHit( tree.box, ray ) )
+   {
+      if( tree.leaf )
+      {
+         TreeHitMark best;
+         best.color.r = 0;
+         best.color.g = 0;
+         best.color.b = 0;
+         TreeHitMark cur;
+         best.t = -1;
+         for( int j = 0; j < tree.SA.num; j++ )
+         {
+            cur.t = surfelHitTest( tree.SA.array[j], ray );
+            if( cur.t > 0 )
+            {
+               if( cur.t < best.t || best.t < 0 )
+               {
+                  best.color = tree.SA.array[j].color;
+                  best.t = cur.t;
+               }
+            }
+         }
+         return best;
+      }
+      else
+      {
+         TreeHitMark best = transTree( *(tree.children[0]), ray );
+         for( int i = 1; i < 8; i++ )
+         {
+            TreeHitMark cur = transTree( *(tree.children[i]), ray );
+            if( cur.t > 0 )
+            {
+               if( cur.t < best.t || best.t < 0 )
+               {
+                  best = cur;
+               }
+            }
+         }
+         return best;
+      }
+   }
+   TreeHitMark none;
+   none.color.r = 0;
+   none.color.g = 0;
+   none.color.b = 0;
+   none.t = -1;
+   return none;
 }

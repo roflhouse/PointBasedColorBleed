@@ -1,110 +1,158 @@
 /**
  *  CPE 2011
  *  -------------------
- *  Program 
+ *  Program
  *
- *  Last Modified: 
+ *  Last Modified:
  *  @author Nick Feeney
  */
 
 #include "BoundingBox.h"
 
-BoundingBox::BoundingBox( Vector minIn, Vector maxIn )
+BoundingBox createBoundingBox( const vec3 &min, const vec3 &max )
 {
-    min = minIn;
-    max = maxIn;
-    if( minIn.x > maxIn.x )
-    {
-        printf("Warning BoundingBox min.x %f > max.xi %f\n", min.x, max.x); 
-    }
-    if( minIn.y > maxIn.y )
-    {
-        printf("Warning BoundingBox min.y %f > max.y %f\n", min.y, max.y); 
-    }
-    if( minIn.z > maxIn.z )
-    {
-        printf("Warning BoundingBox min.z %f > max.z\n %f", min.z, max.z); 
-    }
+   BoundingBox ret;
+   ret.min = min;
+   ret.max = max;
+   if( min.x > max.x )
+   {
+      printf("Warning BoundingBox min.x %f > max.xi %f\n", min.x, max.x);
+   }
+   if( min.y > max.y )
+   {
+      printf("Warning BoundingBox min.y %f > max.y %f\n", min.y, max.y);
+   }
+   if( min.z > max.z )
+   {
+      printf("Warning BoundingBox min.z %f > max.z\n %f", min.z, max.z);
+   }
+   return ret;
 }
-BoundingBox::BoundingBox( BoundingBox one, BoundingBox two )
+bool isIn( const BoundingBox &box, const vec3 &pos )
 {
-    min.x = one.min.x;
-    min.y = one.min.y;
-    min.z = one.min.z;
-    max.x = one.max.x;
-    max.y = one.max.y;
-    max.z = one.max.z;
-    if( min.x > two.min.x )
-        min.x = two.min.x;
-    if( min.y > two.min.y )
-        min.y = two.min.y;
-    if( min.z > two.min.z )
-        min.z = two.min.z;
-    if( max.x < two.max.x )
-        max.x = two.max.x;
-    if( max.y < two.max.y )
-        max.y = two.max.y;
-    if( max.z < two.max.z )
-        max.z = two.max.z;
+   if (pos.x > box.max.x || pos.x < box.min.x )
+      return false;
+   if (pos.y > box.max.y || pos.y < box.min.y )
+      return false;
+   if (pos.z > box.max.z || pos.z < box.min.z )
+      return false;
+   return true;
 }
-bool BoundingBox::testForHit( Vector dir, Vector pos )
+bool testForHit( const BoundingBox &box, const Ray &ray )
 {
-    if( dir.x > -0.0001 && dir.x < 0.0001 )
-    {
-        if( pos.x < min.x || pos.x > max.x )
-            return false;
-    }
-    if( dir.y > -0.0001 && dir.y < 0.0001 )
-    {
-        if( pos.y < min.y || pos.y > max.y )
-            return false;
-    }
-    if( dir.z > -0.0001 && dir.z < 0.0001 )
-    {
-        if( pos.z < min.z || pos.z > max.z )
-            return false;
-    }
-    float txmin = (min.x - pos.x) / dir.x;
-    float tymin = (min.y - pos.y) / dir.y;
-    float tzmin = (min.z - pos.z) / dir.z;
-    float txmax = (max.x - pos.x) / dir.x;
-    float tymax = (max.y - pos.y) / dir.y;
-    float tzmax = (max.z - pos.z) / dir.z;
+   if( ray.dir.x > -0.0001 && ray.dir.x < 0.0001 )
+   {
+      if( ray.pos.x < box.min.x || ray.pos.x > box.max.x )
+         return false;
+   }
+   if( ray.dir.y > -0.0001 && ray.dir.y < 0.0001 )
+   {
+      if( ray.pos.y < box.min.y || ray.pos.y > box.max.y )
+         return false;
+   }
+   if( ray.dir.z > -0.0001 && ray.dir.z < 0.0001 )
+   {
+      if( ray.pos.z < box.min.z || ray.pos.z > box.max.z )
+         return false;
+   }
+   float txmin = (box.min.x - ray.pos.x) / ray.dir.x;
+   float tymin = (box.min.y - ray.pos.y) / ray.dir.y;
+   float tzmin = (box.min.z - ray.pos.z) / ray.dir.z;
+   float txmax = (box.max.x - ray.pos.x) / ray.dir.x;
+   float tymax = (box.max.y - ray.pos.y) / ray.dir.y;
+   float tzmax = (box.max.z - ray.pos.z) / ray.dir.z;
 
-    if( txmin > txmax )
-    {
-        float temp = txmax;
-        txmax = txmin;
-        txmin = temp;
-    }
-    if( tymin > tymax )
-    {
-        float temp = tymax;
-        tymax = tymin;
-        tymin = temp;
-    }
-    if( tzmin > tzmax )
-    {
-        float temp = tzmax;
-        tzmax = tzmin;
-        tzmin = temp;
-    }
+   if( txmin > txmax )
+   {
+      float temp = txmax;
+      txmax = txmin;
+      txmin = temp;
+   }
+   if( tymin > tymax )
+   {
+      float temp = tymax;
+      tymax = tymin;
+      tymin = temp;
+   }
+   if( tzmin > tzmax )
+   {
+      float temp = tzmax;
+      tzmax = tzmin;
+      tzmin = temp;
+   }
 
-    float tgmin = txmin;
-    float tgmax = txmax;
-    //find largest min
-    if( tgmin < tymin )
-        tgmin = tymin;
-    if( tgmin < tzmin )
-        tgmin = tzmin;
+   float tgmin = txmin;
+   float tgmax = txmax;
+   //find largest min
+   if( tgmin < tymin )
+      tgmin = tymin;
+   if( tgmin < tzmin )
+      tgmin = tzmin;
 
-    //find smallest max
-    if( tgmax > tymax )
-        tgmax = tymax;
-    if( tgmax > tzmax )
-        tgmax = tzmax;
+   //find smallest max
+   if( tgmax > tymax )
+      tgmax = tymax;
+   if( tgmax > tzmax )
+      tgmax = tzmax;
 
-    if( tgmin > tgmax )
-        return false;
-    return true;
+   if( tgmin > tgmax )
+      return false;
+   return true;
+}
+BoundingBox *getSubBoxes( const BoundingBox &box )
+{
+   BoundingBox *boxes = (BoundingBox *) malloc( sizeof(BoundingBox) * 8 );
+
+   for( int i = 0; i < 8; i++ )
+   {
+      boxes[i].min = box.min;
+      boxes[i].max = box.max;
+   }
+
+   vec3 half;
+   half.x = box.min.x + (box.max.x - box.min.x)/2;
+   half.y = box.min.y + (box.max.y - box.min.y)/2;
+   half.z = box.min.z + (box.max.z - box.min.z)/2;
+
+   //first box
+   boxes[0].max.x = half.x;
+   boxes[0].max.y = half.y;
+   boxes[0].max.z = half.z;
+
+   //second box (x change)
+   boxes[1].min.x = half.x;
+   boxes[1].max.y = half.y;
+   boxes[1].max.z = half.z;
+
+   //third box (y change)
+   boxes[2].max.x = half.x;
+   boxes[2].min.y = half.y;
+   boxes[2].max.z = half.z;
+
+   //fourth box ( x and y change )
+   boxes[3].min.x = half.x;
+   boxes[3].min.y = half.y;
+   boxes[3].max.z = half.z;
+
+   //fifth box (z change)
+   boxes[4].max.x = half.x;
+   boxes[4].max.y = half.y;
+   boxes[4].min.z = half.z;
+
+   //sixth (z and x change)
+   boxes[5].min.x = half.x;
+   boxes[5].max.y = half.y;
+   boxes[5].min.z = half.z;
+
+   //seventh (z and y)
+   boxes[6].max.x = half.x;
+   boxes[6].min.y = half.y;
+   boxes[6].min.z = half.z;
+
+   //8th (z,y,x )
+   boxes[7].min.x = half.x;
+   boxes[7].min.y = half.y;
+   boxes[7].min.z = half.z;
+
+   return boxes;
 }

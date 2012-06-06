@@ -1,32 +1,24 @@
 /**
  *  CPE 2011
  *  -------------------
- *  Program 
+ *  Program
  *
- *  Last Modified: 
+ *  Last Modified:
  *  @author Nick Feeney
  */
 #ifndef BOUNDINGBOX_H
 #define BOUNDINGBOX_H
-#include <sys/types.h>
-#include <unistd.h>
+#include "vec3.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
-#include <ctype.h>
-#include "Vector.h"
+typedef struct BoundingBox {
+   vec3 min;
+   vec3 max;
+} BoundingBox;
 
-class BoundingBox
-{
-    public:
-        BoundingBox( Vector minIn, Vector maxIn );
-        BoundingBox( BoundingBox one, BoundingBox two );
+#include "Ray.h"
+bool testForHit( const BoundingBox &box, const Ray &ray );
+bool isIn( const BoundingBox &box, const vec3 &post );
+BoundingBox *getSubBoxes( const BoundingBox &box );
+BoundingBox createBoundingBox( const vec3 &min, const vec3 &max );
 
-        bool testForHit( Vector dir, Vector pos );
-
-        Vector min;
-        Vector max;
-};
 #endif
