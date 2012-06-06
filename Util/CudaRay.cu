@@ -43,7 +43,6 @@ void castRaysCuda( const SurfelArray &s, Ray *rays, int numRays, Color *buffer, 
    CUDASAFECALL(cudaMalloc( (void **)&(d_s), sizeof(Surfel) * s.num ));
    CUDASAFECALL(cudaMalloc( (void **)&(d_r), sizeof(Ray) * 10000 ));
    CUDASAFECALL(cudaMalloc( (void **)&(d_c), sizeof(Color) * width * height ));
-
    CUDASAFECALL(cudaMemcpy( d_s, s.array, sizeof(Surfel) * s.num, cudaMemcpyHostToDevice ));
 
    int x = numRays / 32;
@@ -78,33 +77,24 @@ void castRaysCuda( const struct ArrayNode *tree, int size, const SurfelArray &s,
    Ray *d_r;
    Color *d_c;
    ArrayNode *d_t;
-   printf("size %d\n", sizeof(Surfel) * s.num );// + sizeof(ArrayNode) * size );
+   printf("size %lu\n", sizeof(Surfel) * s.num + sizeof(ArrayNode) * size +
+         sizeof(Ray)* numRays + sizeof(Color) *width *height );// + sizeof(ArrayNode) * size );
    CUDASAFECALL(cudaMalloc( (void **)&(d_s), sizeof(Surfel) * s.num ));
    CUDASAFECALL(cudaMalloc( (void **)&(d_t), sizeof(ArrayNode) * size ) );
-   CUDASAFECALL(cudaMalloc( (void **)&(d_r), sizeof(Ray) * 10000 ));
+   CUDASAFECALL(cudaMalloc( (void **)&(d_r), sizeof(Ray) * numRays ));
    CUDASAFECALL(cudaMalloc( (void **)&(d_c), sizeof(Color) * width * height ));
 
+   CUDASAFECALL(cudaMemcpy( d_r, rays, sizeof(Ray) * numRays, cudaMemcpyHostToDevice ));
    CUDASAFECALL(cudaMemcpy( d_s, s.array, sizeof(Surfel) * s.num, cudaMemcpyHostToDevice ));
    CUDASAFECALL(cudaMemcpy( d_t, tree, sizeof(ArrayNode) * size, cudaMemcpyHostToDevice ) );
 
-   int x = numRays / 32;
-   if( numRays%32 )
+   int x = sqrt( numRays /32 ) ;
+   if( x < sqrt( numRays /32 ) )
       x++;
 
    dim3 dimBlock(32);
-   dim3 dimGrid( x );
-   int curRay = 10000;
-   int curser = 0;
-   while( numRays > 0 )
-   {
-      if ( curRay > numRays )
-         curRay = numRays;
-
-      CUDASAFECALL(cudaMemcpy( d_r, rays+curser, sizeof(Ray) * curRay, cudaMemcpyHostToDevice ));
-      castTree<<<dimGrid, dimBlock>>>( d_t, size, d_s, s.num, d_r, curRay, d_c, width );
-      numRays -= curRay;
-      curser += curRay;
-   }
+   dim3 dimGrid( x, x );
+   castTree<<<dimGrid, dimBlock>>>( d_t, size, d_s, s.num, d_r, numRays, d_c, width );
 
    CUDASAFECALL(cudaMemcpy( buffer, d_c, sizeof(Color) * width * height, cudaMemcpyDeviceToHost ));
 
@@ -115,12 +105,14 @@ void castRaysCuda( const struct ArrayNode *tree, int size, const SurfelArray &s,
 __global__ void castTree( ArrayNode *tree, int size, Surfel *s, int numS, Ray *rays, int numRays,
       Color *buffer, int width )
 {
-   int x = blockIdx.x * blockDim.x + threadIdx.x;
+   int x = threadIdx.x + blockIdx.x * blockDim.x;
+   int y = blockIdx.y * gridDim.x;
+   int index = y * blockDim.x + x;
    //int y = blockIdx.y * gridDim.y + threadIdx.y;
-   if( x >= numRays )
+   if( index >= numRays )
       return;
 
-   Ray ray = rays[x];
+   Ray ray = rays[index];
    buffer[ray.i*width + ray.j] = raytrace( tree, size, s, ray );
 }
 __device__ Color raytrace( struct ArrayNode *tree, int size, Surfel *s, Ray ray )
