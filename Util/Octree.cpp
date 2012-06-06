@@ -26,7 +26,7 @@ TreeNode createOctree( SurfelArray &SA, vec3 min, vec3 max )
    }
    else 
       root.leaf = true;
-   printf("Octree finished\n");
+   printf("Octree finished %d\n", sizeof(Surfel) * SA.num);
    return root;
 }
 TreeNode *createTreeNode( TreeNode root, const BoundingBox &box, int depth )
@@ -40,7 +40,7 @@ TreeNode *createTreeNode( TreeNode root, const BoundingBox &box, int depth )
          addToSA( ret->SA, root.SA.array[i] );
    }
    shrinkSA( ret->SA );
-   if( ret->SA.num > 32 && depth < 20 )
+   if( ret->SA.num > 32  )
    {
       ret->leaf = false;
          BoundingBox *boxes = getSubBoxes( ret->box );

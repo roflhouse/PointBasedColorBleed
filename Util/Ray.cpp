@@ -12,8 +12,8 @@
 
 int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
 {
-   width *= 1;
-   height *= 1;
+   width *= 2;
+   height *= 2;
    vec3 right = unit(cam.right);
    vec3 up = unit(cam.up);
    float rightUnitX = right.x;
@@ -217,7 +217,7 @@ Color raytrace( const struct Scene &scene, const Ray &ray )
    Intersection best;
    best.hit = false;
 
-   float bestT = 10000;
+   float bestT = 100000;
    float t;
    for( int j = 0; j < scene.numSpheres; j++ )
    {
@@ -227,15 +227,15 @@ Color raytrace( const struct Scene &scene, const Ray &ray )
          if( !best.hit || s.t0 < bestT )
          {
             best = sphereIntersection( scene.spheres[j], ray, s.t0 );
-            bestT = t;
+            bestT = s.t0;
          }
       }
-      if( s.t1 > 0 )
+      else if( s.t1 > 0 )
       {
          if( !best.hit || s.t1 < bestT )
          {
             best = sphereIntersection( scene.spheres[j], ray, s.t1 );
-            bestT = t;
+            bestT = s.t0;
          }
       }
    }
@@ -292,7 +292,7 @@ Color raytrace2( const struct Scene &SA, const Ray &ray )
             hit = true;
          }
       }
-      if( s.t1 > 0 )
+      else if( s.t1 > 0 )
       {
          if( !hit || s.t1 < bestT )
          {

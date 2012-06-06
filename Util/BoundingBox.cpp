@@ -8,6 +8,7 @@
  */
 
 #include "BoundingBox.h"
+#define RADIUS 0.02 
 
 BoundingBox createBoundingBox( const vec3 &min, const vec3 &max )
 {
@@ -38,8 +39,18 @@ bool isIn( const BoundingBox &box, const vec3 &pos )
       return false;
    return true;
 }
-bool testForHit( const BoundingBox &box, const Ray &ray )
+bool testForHit( const BoundingBox &boxIn, const Ray &ray )
 {
+   vec3 min = boxIn.min;
+   min.x -= RADIUS;
+   min.y -= RADIUS;
+   min.z -= RADIUS;
+
+   vec3 max = boxIn.max;
+   max.x += RADIUS;
+   max.y += RADIUS;
+   max.z += RADIUS;
+   BoundingBox box = createBoundingBox(min, max);
    if( ray.dir.x > -0.0001 && ray.dir.x < 0.0001 )
    {
       if( ray.pos.x < box.min.x || ray.pos.x > box.max.x )

@@ -3,8 +3,8 @@
 #  @author Nick Feeney
 CC=g++
 LD=g++
-CFLAGS= -Wall  -I "./glm" -g -c -O3 
-LDFLAGS= -Wall -I "./glm" -g -O3
+CFLAGS= -Wall -pg  -I "./glm" -g -c -O3 
+LDFLAGS= -Wall -pg -I "./glm" -g -O3
 
 ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o
 

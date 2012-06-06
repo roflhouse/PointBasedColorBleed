@@ -23,11 +23,11 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
    position.z = ray.pos.z;
 
    float vd = dot(normal, direction);
-   if( vd < 0.0001 && vd > -0.0001 )
+   if( vd < 0.001 && vd > -0.001 )
       return -1;
    float v0 = -(dot(position, normal) - surfel.distance );
    float t = v0/vd;
-   if( t < 0.001)
+   if( t < 0.01)
       return -1;
 
    vec3 hitMark;
