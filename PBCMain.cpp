@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 
    Color **buffer = outfile.getBuffer();
 
-   //TreeNode surfels = createSurfelTree( scene, rays, number ); 
+   TreeNode surfels = createSurfelTree( scene, rays, number ); 
    free( rays );
    /*
 
@@ -72,9 +72,9 @@ int main(int argc, char *argv[])
 
    number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
    //Scene s2 = createSurfelSpheres( scene, rays, number );
-   //castRays( surfels, rays, number, buffer );
+   castRays( surfels, rays, number, buffer );
    //castRaysSphere( s2, rays, number, buffer );
-   castRays( scene, rays, number, buffer );
+   //castRays( scene, rays, number, buffer );
 
    outfile.writeTga( "outfile.tga" );
    return EXIT_SUCCESS;
