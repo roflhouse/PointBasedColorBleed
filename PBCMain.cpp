@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 
    Ray *rays;
 
-   int number = createInitRays( &rays, width_of_image, height_of_image, 1.2, scene.camera );
+   int number = createInitRays( &rays, width_of_image, height_of_image, 1.0, scene.camera );
    Tga outfile( width_of_image, height_of_image );
 
    Color **buffer = outfile.getBuffer();

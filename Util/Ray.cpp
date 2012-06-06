@@ -12,8 +12,8 @@
 
 int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
 {
-   width *= 2;
-   height *= 2;
+   width *= 1;
+   height *= 1;
    vec3 right = unit(cam.right);
    vec3 up = unit(cam.up);
    float rightUnitX = right.x;
