@@ -9,7 +9,7 @@
 #ifndef SPHERE_H
 #define SPHERE_H
 #include "../Util/vec3.h"
-#include "../Util/Ray.h"
+#include "../Util/RayType.h"
 #include "../Util/Intersection.h"
 #include "ObjectInfo.h"
 #include <stdio.h>

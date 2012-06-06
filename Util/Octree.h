@@ -12,6 +12,7 @@
 #include "BoundingBox.h"
 #include "../Objects/Surfel.h"
 #include "vec3.h"
+#include <stdio.h>
 
 typedef struct TreeNode {
    int leaf;
@@ -19,6 +20,11 @@ typedef struct TreeNode {
    struct TreeNode *children[8];
    struct SurfelArray SA;
 } TreeNode;
+typedef struct ArrayNode {
+   int leaf;
+   struct BoundingBox box;
+   int children[8];
+} ArrayNode;
 
 typedef struct Node {
    int leaf;
@@ -34,5 +40,6 @@ typedef struct Octree {
 
 TreeNode createOctree( struct SurfelArray &SA, vec3 min, vec3 max );
 TreeNode *createTreeNode( TreeNode root, const BoundingBox &box, int depth );
+ArrayNode *createOctreeForCuda( struct SurfelArray &SA, vec3 min, vec3 max, int &size );
 
 #endif

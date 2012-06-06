@@ -9,6 +9,7 @@
 #include "Ray.h"
 
 #define PI 3.141592
+#define MAXDEPTH 15
 
 int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
 {
@@ -25,6 +26,7 @@ int createInitRays( Ray **rays, int width, int height, float growth, Camera cam 
    vec3 uv = unit(newDirection(cam.lookat, cam.pos));
 
    *rays = (Ray *) malloc( sizeof(Ray) *height*width );
+   printf("malloced\n");
    for( int i = 0; i < height; i++)
    {
       for( int j = 0; j < width ; j ++ )
@@ -76,32 +78,39 @@ int createDrawingRays( Ray **rays, int width, int height, Camera cam )
    }
    return width * height;
 }
-void castRays( const Scene &scene, Ray *rays, int numRays, Color **buffer )
+void castRays( const Scene &scene, Ray *rays, int numRays, Color *buffer, int width )
 {
    for( int i = 0; i < numRays; i++ )
    {
-      buffer[rays[i].i][rays[i].j] = raytrace( scene, rays[i] );
+      buffer[rays[i].i * width + rays[i].j] = raytrace( scene, rays[i] );
    }
 }
-void castRaysSphere( const Scene &scene, Ray *rays, int numRays, Color **buffer )
+void castRaysSphere( const Scene &scene, Ray *rays, int numRays, Color *buffer, int width )
 {
    for( int i = 0; i < numRays; i++ )
    {
-      buffer[rays[i].i][rays[i].j] = raytrace2( scene, rays[i] );
+      buffer[rays[i].i*width + rays[i].j] = raytrace2( scene, rays[i] );
    }
 }
-void castRays( const SurfelArray &surfels, Ray *rays, int numRays, Color **buffer )
+void castRays( const SurfelArray &surfels, Ray *rays, int numRays, Color *buffer, int width )
 {
    for( int i = 0; i < numRays; i++ )
    {
-      buffer[rays[i].i][rays[i].j] = raytrace( surfels, rays[i] );
+      buffer[rays[i].i*width + rays[i].j] = raytrace( surfels, rays[i] );
    }
 }
-void castRays( const TreeNode &tree, Ray *rays, int numRays, Color **buffer )
+void castRays( const TreeNode &tree, Ray *rays, int numRays, Color *buffer, int width )
 {
    for( int i = 0; i < numRays; i++ )
    {
-      buffer[rays[i].i][rays[i].j] = raytrace( tree, rays[i] );
+      buffer[rays[i].i*width + rays[i].j] = raytrace( tree, rays[i] );
+   }
+}
+void castRays( const ArrayNode *tree, int size, struct SurfelArray &SA, Ray *rays, int numRays, Color *buffer, int width )
+{
+   for( int i = 0; i < numRays; i++ )
+   {
+      buffer[rays[i].i*width + rays[i].j] = raytrace( tree, size, SA, rays[i] );
    }
 }
 SurfelArray createSurfels( const Scene &scene, Ray *rays, int numRays )
@@ -120,6 +129,32 @@ SurfelArray createSurfels( const Scene &scene, Ray *rays, int numRays )
    }
    shrinkSA( SA );
    return SA;
+}
+ArrayNode *createSurfelsCuda( const Scene &scene, Ray *rays, int numRays, SurfelArray &SA, int &size )
+{
+   vec3 min;
+   vec3 max;
+   IntersectionArray IA = createIntersectionArray();
+
+   for( int i = 0; i < numRays; i++ )
+   {
+      collectIntersections( scene, rays[i], IA );
+   }
+   shrinkIA( IA );
+   for( int i = 0; i < IA.num; i++ )
+   {
+      if( i == 0 )
+      {
+         min = IA.array[i].hitMark;
+         max = min;
+      }
+      addToSA( SA, intersectionToSurfel( IA.array[i], scene ) );
+      keepMin( min, IA.array[i].hitMark );
+      keepMax( max, IA.array[i].hitMark );
+   }
+   shrinkSA( SA );
+
+   return createOctreeForCuda( SA, min, max, size );
 }
 TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
 {
@@ -339,7 +374,7 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray )
    TreeHitMark cur = transTree( tree, ray );
    if ( cur.t > 0 )
       return cur.color;
-   else 
+   else
       return color;
 }
 TreeHitMark transTree( TreeNode tree, const Ray &ray )
@@ -391,4 +426,59 @@ TreeHitMark transTree( TreeNode tree, const Ray &ray )
    none.color.b = 0;
    none.t = -1;
    return none;
+}
+Color raytrace( const struct ArrayNode *tree, int size, SurfelArray &SA, const Ray &ray )
+{
+   Color color;
+   color.r = 0;
+   color.b = 0;
+   color.g = 0;
+
+   bool hit = false;
+   float bestT = 10000;
+   float t = 0;
+
+   int stack[MAXDEPTH*8+2];
+   int curser = 1;
+   stack[0] = 0;
+   while( curser ){
+      curser--;
+      int now = stack[curser];
+      //printf("Doing %d\n", now );
+      if( testForHit( tree[now].box, ray ) )
+      {
+         if( tree[now].leaf )
+         {
+            for( int j = tree[now].children[0]; j < tree[now].children[1]; j++ )
+            {
+               t = surfelHitTest( SA.array[j], ray );
+               if( t > 0 )
+               {
+                  if( !hit || t < bestT )
+                  {
+                     color = SA.array[j].color;
+                     bestT = t;
+                     hit = true;
+                  }
+               }
+            }
+         }
+         else
+         {
+            for( int i = 7; i >= 0; i-- )
+            {
+               if( tree[now].children[i] > 0 )
+               {
+                  stack[curser] = tree[now].children[i];
+                  //printf("Push %d\n", stack[curser]);
+                  if( curser > MAXDEPTH*8 )
+                     printf("FUCK\n");
+                  curser++;
+               }
+            }
+         }
+      }
+   }
+
+   return color;
 }

@@ -23,11 +23,13 @@
 
 #include "Util/Parser.h"
 #include <vector>
-#include "Objects/Objects.h"
-#include "Util/Ray.h"
+//#include "Objects/Objects.h"
+#include "Objects/SurfelType.h"
+#include "Util/RayType.h"
 #include "Util/Tga.h"
 #include "Util/Color.h"
 #include "Util/Octree.h"
+#include "Util/CudaRay.h"
 
 int width_of_image;
 int height_of_image;
@@ -35,7 +37,6 @@ char *parseCommandLine(int argc, char *argv[]);
 
 int main(int argc, char *argv[])
 {
-   printf("size: %u\n", sizeof(Ray) );
    char *filename = parseCommandLine(argc, argv);
    std::string str(filename);
 
@@ -44,12 +45,18 @@ int main(int argc, char *argv[])
    Ray *rays;
 
    int number = createInitRays( &rays, width_of_image, height_of_image, 1.0, scene.camera );
-   Tga outfile( width_of_image, height_of_image );
+   int size = 0;
 
-   Color **buffer = outfile.getBuffer();
-
-   TreeNode surfels = createSurfelTree( scene, rays, number ); 
+   SurfelArray SA = createSurfelArray();
+   ArrayNode *surfels = createSurfelsCuda( scene, rays, number, SA, size ); 
+   //TreeNode surfels = createSurfelTree( scene, rays, number );
+   //SurfelArray surfels = createSurfels( scene, rays, number );
    free( rays );
+
+   number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
+
+   Tga outfile( width_of_image, height_of_image );
+   Color *buffer = outfile.getBuffer();
    /*
 
    SurfelArray surfels = createSurfelArray();
@@ -70,11 +77,11 @@ int main(int argc, char *argv[])
    addToSA( surfels, s );
    */
 
-   number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
    //Scene s2 = createSurfelSpheres( scene, rays, number );
-   castRays( surfels, rays, number, buffer );
-   //castRaysSphere( s2, rays, number, buffer );
-   //castRays( scene, rays, number, buffer );
+   castRays( surfels, size, SA, rays, number, buffer, width_of_image );
+   //castRays( surfels, rays, number, buffer, width_of_image );
+   //castRaysSphere( s2, rays, number, buffer, width_of_image );
+   //castRays( scene, rays, number, buffer, width_of_image );
 
    outfile.writeTga( "outfile.tga" );
    return EXIT_SUCCESS;

@@ -8,7 +8,7 @@
  */
 
 #include "BoundingBox.h"
-#define RADIUS 0.02 
+#define RADIUS 0.002 
 
 BoundingBox createBoundingBox( const vec3 &min, const vec3 &max )
 {

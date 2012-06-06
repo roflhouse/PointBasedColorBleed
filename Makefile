@@ -1,19 +1,20 @@
 #  CPE 473
 #  -------------------
 #  @author Nick Feeney
-CC=g++
-LD=g++
-CFLAGS= -Wall -pg  -I "./glm" -g -c -O3 
-LDFLAGS= -Wall -pg -I "./glm" -g -O3
+CC=nvcc
+LD=nvcc
+CFLAGS= -I "./glm" -g -c  
+CFLAGSCUDA= -g -c  -arch=sm_21 
+LDFLAGS= -I "./glm" -g 
 
-ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o
+ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o Util/CudaRay.o 
 
 all:	$(ALL) PBC 
 
 PBC:	$(ALL)
 	$(CC) $(LDFLAGS) $(ALL) -o PBC 
 
-PBCMain.o:	PBCMain.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Color.o Util/Ray.o 
+PBCMain.o:	PBCMain.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Color.o Util/Ray.o Util/CudaRay.o 
 	$(CC) $(CFLAGS) -o $@ $<
 
 Util/Header.o:	Util/Header.cpp Util/Header.h
@@ -21,7 +22,10 @@ Util/Header.o:	Util/Header.cpp Util/Header.h
 
 Util/BoundingBox.o:	Util/BoundingBox.cpp Util/BoundingBox.h Util/vec3.h
 	$(CC) $(CFLAGS) -o $@ $<
-   
+
+Util/CudaRay.o:	Util/CudaRay.cu Util/CudaRay.h Util/vec3.h Objects/Surfel.h
+	$(CC) $(CFLAGSCUDA) -o $@ $<
+
 Util/Octree.o:	Util/Octree.cpp Objects/Surfel.h Util/vec3.h
 	$(CC) $(CFLAGS) -o $@ $<
 

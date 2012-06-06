@@ -10,7 +10,7 @@
 #define PLANE_H
 #include "ObjectInfo.h"
 #include "../Util/vec3.h"
-#include "../Util/Ray.h"
+#include "../Util/RayType.h"
 #include "../Util/Intersection.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,13 +1,13 @@
 /**
  *  CPE 2010
  *  -------------------
- *  Program 
+ *  Program
  *
- *  Last Modified: 
+ *  Last Modified:
  *  @author Nick Feeney
  */
-#ifndef TRIANGLE_H 
-#define TRIANGLE_H 
+#ifndef TRIANGLE_H
+#define TRIANGLE_H
 #include "ObjectInfo.h"
 #include "../Util/vec3.h"
 #include <stdio.h>
@@ -22,9 +22,9 @@ typedef struct Triangle {
    ObjectInfo info;
 } Triangle;
 
-#include "../Util/Ray.h"
+#include "../Util/RayType.h"
 #include "../Util/Intersection.h"
 Triangle parseTriangle( FILE *file );
-float triangleHitTest( const Triangle &triangle, const Ray &ray ); 
+float triangleHitTest( const Triangle &triangle, const Ray &ray );
 Intersection triangleIntersection( const Triangle &triangle, const Ray &ray, float t );
 #endif

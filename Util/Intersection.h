@@ -37,7 +37,7 @@ typedef struct IntersectionArray {
 #include "../Objects/Surfel.h"
 #include "Scene.h"
 
-Color directIllumination( const Intersection &inter, const Scene &scene );
+Color directIllumination( const Intersection &inter, const struct Scene &scene );
 
 void growIA( IntersectionArray &array );
 void freeIntersectionArray( IntersectionArray &array );
@@ -45,6 +45,6 @@ void addToIA( IntersectionArray &in, const Intersection &intersection );
 void shrinkIA( IntersectionArray &in );
 IntersectionArray createIntersectionArray();
 
-struct Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene );
-struct Sphere intersectionToSphere( const Intersection &inter, const Scene &scene );
+struct Surfel intersectionToSurfel( const Intersection &inter, const struct Scene &scene );
+struct Sphere intersectionToSphere( const Intersection &inter, const struct Scene &scene );
 #endif

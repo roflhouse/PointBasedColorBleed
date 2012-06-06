@@ -28,4 +28,5 @@ vec3 newDirection(const vec3 &to, const vec3 &from );
 vec3 unit(const vec3 &in);
 void keepMin( vec3 &min, vec3 pos );
 void keepMax( vec3 &max, vec3 pos );
+
 #endif

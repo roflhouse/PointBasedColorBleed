@@ -11,20 +11,8 @@
 #define SURFEL_H
 #include "../Util/vec3.h"
 #include "../Util/Color.h"
+#include "SurfelType.h"
 
-typedef struct Surfel {
-   vec3 pos;
-   vec3 normal;
-   float distance;
-   Color color;
-   float radius;
-} Surfel;
-
-typedef struct SurfelArray {
-   Surfel *array;
-   int num;
-   int max;
-} SurfelArray;
 
 #include "../Util/Ray.h"
 float surfelHitTest( const Surfel &surfel, const struct Ray &ray );

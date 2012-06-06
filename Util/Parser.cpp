@@ -8,6 +8,9 @@
  */
 
 #include "Parser.h"
+#include "../Objects/Objects.h"
+#include "vec3.h"
+
 #include <stdlib.h>
 
 Scene parseFile( std::string filename )
