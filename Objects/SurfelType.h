@@ -9,6 +9,7 @@
 
 #ifndef SURFELTYPE_H
 #define SURFELTYPE_H
+#include "../Util/Color.h"
 typedef struct Surfel {
    vec3 pos;
    vec3 normal;
@@ -22,4 +23,9 @@ typedef struct SurfelArray {
    int num;
    int max;
 } SurfelArray;
+SurfelArray createSurfelArray();
+void growSA( SurfelArray &array );
+void freeSurfelArray( SurfelArray &in );
+void addToSA( SurfelArray &in, const Surfel &surfel );
+void shrinkSA( SurfelArray &in );
 #endif

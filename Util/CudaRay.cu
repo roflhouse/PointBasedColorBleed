@@ -10,6 +10,9 @@
 #include "CudaRay.h"
 #include <stdio.h>
 #include "cutil.h"
+#include "Octree.h"
+#define MAXDEPTH 15
+#define RADIUS 0.01
 #define CUDASAFECALL( call )  CUDA_SAFE_CALL( call )
 #define CUDAERRORCHECK() {                   \
    cudaError err = cudaGetLastError();        \
@@ -20,13 +23,17 @@
 
 
 __global__ void cast( Surfel *s, int numS, Ray *rays, int numRays, Color *buffer, int width );
+__global__ void castTree( ArrayNode *tree, int size, Surfel *s, int numS,
+      Ray *rays, int numRays, Color *buffer, int width );
 __device__ Color raytrace( Surfel *s, int numS, Ray ray );
 __device__ float surfelHitTestCuda( Surfel s, Ray ray );
 __device__ float dotCuda( vec3 one, vec3 two );
 __device__ float squareDistanceCuda( vec3 one, vec3 two );
 __device__ vec3 unitCuda(vec3 in);
 __device__ float magCuda(const vec3 &in);
+__device__ Color raytrace( struct ArrayNode *tree, int size, Surfel *s, Ray ray );
 __device__ Color limitColorCuda( Color color );
+__device__ bool testForHitCuda( BoundingBox boxIn, Ray ray );
 
 void castRaysCuda( const SurfelArray &s, Ray *rays, int numRays, Color *buffer, int width, int height )
 {
@@ -63,6 +70,113 @@ void castRaysCuda( const SurfelArray &s, Ray *rays, int numRays, Color *buffer, 
    cudaFree( d_c );
    cudaFree( d_s );
    cudaFree( d_r );
+}
+void castRaysCuda( const struct ArrayNode *tree, int size, const SurfelArray &s, Ray *rays, int numRays,
+      Color *buffer, int width, int height )
+{
+   Surfel *d_s;
+   Ray *d_r;
+   Color *d_c;
+   ArrayNode *d_t;
+   printf("size %d\n", sizeof(Surfel) * s.num );// + sizeof(ArrayNode) * size );
+   CUDASAFECALL(cudaMalloc( (void **)&(d_s), sizeof(Surfel) * s.num ));
+   CUDASAFECALL(cudaMalloc( (void **)&(d_t), sizeof(ArrayNode) * size ) );
+   CUDASAFECALL(cudaMalloc( (void **)&(d_r), sizeof(Ray) * 10000 ));
+   CUDASAFECALL(cudaMalloc( (void **)&(d_c), sizeof(Color) * width * height ));
+
+   CUDASAFECALL(cudaMemcpy( d_s, s.array, sizeof(Surfel) * s.num, cudaMemcpyHostToDevice ));
+   CUDASAFECALL(cudaMemcpy( d_t, tree, sizeof(ArrayNode) * size, cudaMemcpyHostToDevice ) );
+
+   int x = numRays / 32;
+   if( numRays%32 )
+      x++;
+
+   dim3 dimBlock(32);
+   dim3 dimGrid( x );
+   int curRay = 10000;
+   int curser = 0;
+   while( numRays > 0 )
+   {
+      if ( curRay > numRays )
+         curRay = numRays;
+
+      CUDASAFECALL(cudaMemcpy( d_r, rays+curser, sizeof(Ray) * curRay, cudaMemcpyHostToDevice ));
+      castTree<<<dimGrid, dimBlock>>>( d_t, size, d_s, s.num, d_r, curRay, d_c, width );
+      numRays -= curRay;
+      curser += curRay;
+   }
+
+   CUDASAFECALL(cudaMemcpy( buffer, d_c, sizeof(Color) * width * height, cudaMemcpyDeviceToHost ));
+
+   cudaFree( d_c );
+   cudaFree( d_s );
+   cudaFree( d_r );
+}
+__global__ void castTree( ArrayNode *tree, int size, Surfel *s, int numS, Ray *rays, int numRays,
+      Color *buffer, int width )
+{
+   int x = blockIdx.x * blockDim.x + threadIdx.x;
+   //int y = blockIdx.y * gridDim.y + threadIdx.y;
+   if( x >= numRays )
+      return;
+
+   Ray ray = rays[x];
+   buffer[ray.i*width + ray.j] = raytrace( tree, size, s, ray );
+}
+__device__ Color raytrace( struct ArrayNode *tree, int size, Surfel *s, Ray ray )
+{
+   Color color;
+   color.r = 0;
+   color.b = 0;
+   color.g = 0;
+
+   bool hit = false;
+   float bestT = 10000;
+   float t = 0;
+
+   int stack[MAXDEPTH*8+2];
+   int curser = 1;
+   stack[0] = 0;
+   while( curser ){
+      curser--;
+      int now = stack[curser];
+      //printf("Doing %d\n", now );
+      if( testForHitCuda( tree[now].box, ray ) )
+      {
+         if( tree[now].leaf )
+         {
+            for( int j = tree[now].children[0]; j < tree[now].children[1]; j++ )
+            {
+               t = surfelHitTestCuda( s[j], ray );
+               if( t > 0 )
+               {
+                  if( !hit || t < bestT )
+                  {
+                     color = s[j].color;
+                     bestT = t;
+                     hit = true;
+                  }
+               }
+            }
+         }
+         else
+         {
+            for( int i = 7; i >= 0; i-- )
+            {
+               if( tree[now].children[i] > 0 )
+               {
+                  stack[curser] = tree[now].children[i];
+                  //printf("Push %d\n", stack[curser]);
+                  if( curser > MAXDEPTH*8 )
+                     printf("FUCK\n");
+                  curser++;
+               }
+            }
+         }
+      }
+   }
+
+   return color;
 }
 
 __global__ void cast( Surfel *s, int numS, Ray *rays, int numRays, Color *buffer, int width )
@@ -187,4 +301,77 @@ __device__ Color limitColorCuda( Color in )
       ret.b = in.b;
 
    return ret;
+}
+__device__ bool testForHitCuda( BoundingBox boxIn, Ray ray )
+{
+   vec3 min = boxIn.min;
+   min.x -= RADIUS;
+   min.y -= RADIUS;
+   min.z -= RADIUS;
+
+   vec3 max = boxIn.max;
+   max.x += RADIUS;
+   max.y += RADIUS;
+   max.z += RADIUS;
+   BoundingBox box ;
+   box.min = min;
+   box.max = max;
+   if( ray.dir.x > -0.0001 && ray.dir.x < 0.0001 )
+   {
+      if( ray.pos.x < box.min.x || ray.pos.x > box.max.x )
+         return false;
+   }
+   if( ray.dir.y > -0.0001 && ray.dir.y < 0.0001 )
+   {
+      if( ray.pos.y < box.min.y || ray.pos.y > box.max.y )
+         return false;
+   }
+   if( ray.dir.z > -0.0001 && ray.dir.z < 0.0001 )
+   {
+      if( ray.pos.z < box.min.z || ray.pos.z > box.max.z )
+         return false;
+   }
+   float txmin = (box.min.x - ray.pos.x) / ray.dir.x;
+   float tymin = (box.min.y - ray.pos.y) / ray.dir.y;
+   float tzmin = (box.min.z - ray.pos.z) / ray.dir.z;
+   float txmax = (box.max.x - ray.pos.x) / ray.dir.x;
+   float tymax = (box.max.y - ray.pos.y) / ray.dir.y;
+   float tzmax = (box.max.z - ray.pos.z) / ray.dir.z;
+
+   if( txmin > txmax )
+   {
+      float temp = txmax;
+      txmax = txmin;
+      txmin = temp;
+   }
+   if( tymin > tymax )
+   {
+      float temp = tymax;
+      tymax = tymin;
+      tymin = temp;
+   }
+   if( tzmin > tzmax )
+   {
+      float temp = tzmax;
+      tzmax = tzmin;
+      tzmin = temp;
+   }
+
+   float tgmin = txmin;
+   float tgmax = txmax;
+   //find largest min
+   if( tgmin < tymin )
+      tgmin = tymin;
+   if( tgmin < tzmin )
+      tgmin = tzmin;
+
+   //find smallest max
+   if( tgmax > tymax )
+      tgmax = tymax;
+   if( tgmax > tzmax )
+      tgmax = tzmax;
+
+   if( tgmin > tgmax )
+      return false;
+   return true;
 }

@@ -15,4 +15,6 @@
 #include "RayType.h"
 
 void castRaysCuda( const SurfelArray &s, Ray *rays, int numRays, Color *buffer, int width, int height );
+void castRaysCuda( const struct ArrayNode *tree, int size, const SurfelArray &s, Ray *rays,
+      int numRays, Color *buffer, int width, int height );
 #endif

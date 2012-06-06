@@ -31,7 +31,7 @@ Tga::Tga(short int w, short int h)
 Tga::~Tga()
 {
     free( data );
-    free( header );
+    delete header ;
 }
 Color *Tga::getBuffer( )
 {

@@ -152,6 +152,7 @@ ArrayNode *createSurfelsCuda( const Scene &scene, Ray *rays, int numRays, Surfel
       keepMin( min, IA.array[i].hitMark );
       keepMax( max, IA.array[i].hitMark );
    }
+   freeIntersectionArray( IA );
    shrinkSA( SA );
 
    return createOctreeForCuda( SA, min, max, size );

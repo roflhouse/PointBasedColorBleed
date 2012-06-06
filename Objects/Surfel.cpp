@@ -81,5 +81,7 @@ void addToSA( SurfelArray &in, const Surfel &surfel )
 }
 void freeSurfelArray( SurfelArray &array )
 {
-   free( array.array );
+   if( array.array != NULL )
+      free( array.array );
+   array.array = NULL;
 }

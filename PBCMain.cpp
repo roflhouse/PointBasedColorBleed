@@ -57,28 +57,17 @@ int main(int argc, char *argv[])
 
    Tga outfile( width_of_image, height_of_image );
    Color *buffer = outfile.getBuffer();
-   /*
-
-   SurfelArray surfels = createSurfelArray();
-   Surfel s;
-   s.pos.x =0;
-   s.pos.y =0;
-   s.pos.z =1;
-
-   s.normal.x = -1;
-   s.normal.y = -1;
-   s.normal.z = 1;
-   s.normal = unit(s.normal);
-   s.color.r = 1;
-   s.color.g = 0;
-   s.color.b = 0;
-   s.radius = 1;
-   s.distance = -dot( s.normal, s.pos );
-   addToSA( surfels, s );
-   */
 
    //Scene s2 = createSurfelSpheres( scene, rays, number );
-   castRays( surfels, size, SA, rays, number, buffer, width_of_image );
+   castRaysCuda( surfels, size, SA, rays, number, buffer, width_of_image, height_of_image );
+   free( scene.spheres );
+   free( scene.planes );
+   free( scene.triangles );
+   free( scene.pointLights );
+   free( surfels );
+   free( rays );
+   freeSurfelArray( SA );
+   //castRays( surfels, size, SA, rays, number, buffer, width_of_image );
    //castRays( surfels, rays, number, buffer, width_of_image );
    //castRaysSphere( s2, rays, number, buffer, width_of_image );
    //castRays( scene, rays, number, buffer, width_of_image );

@@ -16,10 +16,5 @@
 
 #include "../Util/Ray.h"
 float surfelHitTest( const Surfel &surfel, const struct Ray &ray );
-SurfelArray createSurfelArray();
-void growSA( SurfelArray &array );
-void freeSurfelArray( SurfelArray &in );
-void addToSA( SurfelArray &in, const Surfel &surfel );
-void shrinkSA( SurfelArray &in );
 #endif
 

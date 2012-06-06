@@ -14,26 +14,26 @@ int count( TreeNode *root );
 int buildOctreeArray( TreeNode *tree, ArrayNode *octree, int &cur, SurfelArray &SA );
 TreeNode createOctree( SurfelArray &SA, vec3 min, vec3 max )
 {
-   TreeNode root;
+   TreeNode *root = (TreeNode *) malloc( sizeof(TreeNode) );
 
-   root.box = createBoundingBox( min, max );
-   root.SA = SA;
+   root->box = createBoundingBox( min, max );
+   root->SA = SA;
    printf("first %d\n", SA.num );
-   if( root.SA.num > 32 )
+   if( root->SA.num > 32 )
    {
-      root.leaf = false;
-      BoundingBox *boxes = getSubBoxes( root.box );
+      root->leaf = false;
+      BoundingBox *boxes = getSubBoxes( root->box );
       for( int i = 0; i < 8; i++ )
-         root.children[i] = createTreeNode( root, boxes[i], 1 );
+         root->children[i] = createTreeNode( root, boxes[i], 1 );
       freeSurfelArray( SA );
    }
    else
-      root.leaf = true;
+      root->leaf = true;
    //printf("Octree finished %d\n", sizeof(Surfel) * SA.num);
-   int numberNodes = count( &root );
+   int numberNodes = count( root );
 
    printf("Octree finished %d\n", numberNodes);
-   return root;
+   return *root;
 }
 int count( TreeNode *root )
 {
@@ -63,22 +63,23 @@ int count( TreeNode *root )
 ArrayNode *createOctreeForCuda( SurfelArray &SA, vec3 min, vec3 max, int &size )
 {
    glob = 0;
-   TreeNode root;
+   TreeNode *root = (TreeNode *) malloc( sizeof(TreeNode) );
 
-   root.box = createBoundingBox( min, max );
-   root.SA = SA;
+   root->box = createBoundingBox( min, max );
+   root->SA = SA;
    printf("first %d\n", SA.num );
-   if( root.SA.num > 32 )
+   if( root->SA.num > 32 )
    {
-      root.leaf = false;
-      BoundingBox *boxes = getSubBoxes( root.box );
+      root->leaf = false;
+      BoundingBox *boxes = getSubBoxes( root->box );
       for( int i = 0; i < 8; i++ )
-         root.children[i] = createTreeNode( root, boxes[i], 1 );
+         root->children[i] = createTreeNode( root, boxes[i], 1 );
+      free( boxes );
    }
    else
-      root.leaf = true;
+      root->leaf = true;
 
-   int numberNodes = count( &root );
+   int numberNodes = count( root );
    shrinkSA(SA);
 
    printf("Octree finished %d, %d, %d\n", glob, SA.num, numberNodes);
@@ -87,63 +88,71 @@ ArrayNode *createOctreeForCuda( SurfelArray &SA, vec3 min, vec3 max, int &size )
    int cur = 0;
    freeSurfelArray( SA );
    SA = createSurfelArray();
-   buildOctreeArray( &root, octree, cur, SA );
+   buildOctreeArray( root, octree, cur, SA );
    shrinkSA( SA );
    size = numberNodes;
    /*for( int i = 0; i < size; i++ )
-   {
-      //printf("Octree %d\n", i);
-      //printf("Leaf %d\n", octree[i].leaf );
-      for( int j = 0; j< 8; j++ )
-         //printf("\tChild: %d\n", octree[i].children[j] );
+     {
+   //printf("Octree %d\n", i);
+   //printf("Leaf %d\n", octree[i].leaf );
+   for( int j = 0; j< 8; j++ )
+   //printf("\tChild: %d\n", octree[i].children[j] );
    }
-   */
+    */
    return octree;
 }
 int buildOctreeArray( TreeNode *tree, ArrayNode *octree, int &cur, SurfelArray &SA )
 {
    int mySpot = cur;
-   octree[mySpot].leaf = tree->leaf;
-   octree[mySpot].box = tree->box;
-   if( octree[mySpot].leaf )
+   ArrayNode temp;
+   temp.leaf = tree->leaf;
+   temp.box = tree->box;
+   if( temp.leaf )
    {
       if( tree->SA.num )
       {
          int adding = tree->SA.num;
-         octree[mySpot].children[0] = SA.num;
-         octree[mySpot].children[1] = SA.num+adding;
+         temp.children[0] = SA.num;
+         temp.children[1] = SA.num+adding;
          if( SA.num +adding > SA.max )
          {
             growSA( SA );
          }
          memcpy( &(SA.array[SA.num]), tree->SA.array, adding * sizeof(Surfel) );
          SA.num += adding;
-         //freeSurfelArray( tree->SA );
+         freeSurfelArray( tree->SA );
          cur++;
+         octree[mySpot] = temp;
+         free( tree );
          return mySpot;
       }
       else
+      {
+         free( tree );
          return -1;
+      }
    }
    else
    {
       cur++;
       for( int i = 0; i < 8; i++ )
       {
-         octree[mySpot].children[i] = buildOctreeArray( tree->children[i], octree, cur, SA );
+         temp.children[i] = buildOctreeArray( tree->children[i], octree, cur, SA );
       }
+      octree[mySpot] = temp;
+      free( tree );
       return mySpot;
    }
 }
-TreeNode *createTreeNode( TreeNode root, const BoundingBox &box, int depth )
+TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth )
 {
    TreeNode *ret = (TreeNode *) malloc ( sizeof( TreeNode ) );
    ret->box = box;
    ret->SA = createSurfelArray();
-   for( int i = 0; i < root.SA.num; i++ )
+   for( int i = 0; i < root->SA.num; i++ )
    {
-      if( isIn( ret->box, root.SA.array[i].pos ) )
-         addToSA( ret->SA, root.SA.array[i] );
+      if( isIn( ret->box, root->SA.array[i].pos ) )
+         addToSA( ret->SA, root->SA.array[i] );
    }
    shrinkSA( ret->SA );
    if( ret->SA.num > 32 && depth < 15 )
@@ -151,8 +160,9 @@ TreeNode *createTreeNode( TreeNode root, const BoundingBox &box, int depth )
       ret->leaf = false;
       BoundingBox *boxes = getSubBoxes( ret->box );
       for( int i = 0; i < 8; i++ )
-         ret->children[i] = createTreeNode( *ret, boxes[i], depth+1 );
+         ret->children[i] = createTreeNode( ret, boxes[i], depth+1 );
       freeSurfelArray( ret->SA );
+      free( boxes );
    }
    else
       ret->leaf = true;

@@ -10,9 +10,11 @@
 #ifndef OCTREE_H
 #define OCTREE_H
 #include "BoundingBox.h"
-#include "../Objects/Surfel.h"
+#include "../Objects/SurfelType.h"
 #include "vec3.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef struct TreeNode {
    int leaf;
@@ -39,7 +41,7 @@ typedef struct Octree {
 } Octree;
 
 TreeNode createOctree( struct SurfelArray &SA, vec3 min, vec3 max );
-TreeNode *createTreeNode( TreeNode root, const BoundingBox &box, int depth );
+TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth );
 ArrayNode *createOctreeForCuda( struct SurfelArray &SA, vec3 min, vec3 max, int &size );
 
 #endif
