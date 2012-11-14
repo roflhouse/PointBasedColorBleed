@@ -1,0 +1,4 @@
+*.o
+output.tga
+outfile.tga
+PBC
