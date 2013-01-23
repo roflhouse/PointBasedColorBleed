@@ -20,6 +20,7 @@ typedef struct BoundingBox {
 #include "RayType.h"
 bool testForHit( const BoundingBox &box, const Ray &ray );
 bool isIn( const BoundingBox &box, const vec3 &post );
+bool belowHorizon(BoundingBox &box, vec3 &position, vec3 &normal );
 BoundingBox *getSubBoxes( const BoundingBox &box );
 BoundingBox createBoundingBox( const vec3 &min, const vec3 &max );
 

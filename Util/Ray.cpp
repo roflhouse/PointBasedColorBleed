@@ -483,3 +483,38 @@ Color raytrace( const struct ArrayNode *tree, int size, SurfelArray &SA, const R
 
    return color;
 }
+
+void transverseOctreeCPU( TreeNode &node, float maxangle, Intersection position )
+{
+   if( node.leaf == 1 )
+   {
+      for( int i = 0; i < node.SA.num; i++ )
+      {
+         //rasterize Surfel
+      }
+   }
+   else
+   {
+      if( belowHorizon( node.box, position.hitMark, position.normal ) )
+         return;
+      evaluateSphereicalHermonics( );
+      int distance = 0;
+      float area = 0;
+      float solidangle = area / (distance *distance);
+      if( solidangle < maxangle )
+      {
+         evaluateSphereicalHermonicsPower( );
+         //rasterize the cluster as a disk
+      }
+      else
+         for( int i = 0; i < 8; i++)
+            if( node.children[i] != NULL )
+               transverseOctreeCPU( node, maxangle, position );
+   }
+}
+void evaluateSphereicalHermonics()
+{
+}
+void evaluateSphereicalHermonicsPower()
+{
+}

@@ -167,3 +167,16 @@ BoundingBox *getSubBoxes( const BoundingBox &box )
 
    return boxes;
 }
+bool belowHorizon( BoundingBox &box, vec3 &position, vec3 &normal )
+{
+   //min - pos
+   vec3 point = newDirection( box.min, position );
+   if (dot( normal, point ) > 0) 
+      return false;
+
+   //max - pos
+   point = newDirection( box.min, position );
+   if (dot(normal, point ) > 0) 
+      return false;
+   return true;
+}

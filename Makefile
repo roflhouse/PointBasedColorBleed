@@ -3,9 +3,9 @@
 #  @author Nick Feeney
 CC=nvcc
 LD=nvcc
-CFLAGS= -I "./glm" -g -c  
+CFLAGS=  -g -c  
 CFLAGSCUDA= -g -c  -arch=sm_21 
-LDFLAGS= -I "./glm" -g 
+LDFLAGS= -g 
 
 ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o Util/CudaRay.o 
 
@@ -65,7 +65,7 @@ Objects/ObjectInfo.o:	Objects/ObjectInfo.cpp Objects/ObjectInfo.h Util/vec3.h
 Util/Parser.o:	Util/Parser.cpp Util/Parser.h Objects/Objects.h Objects/Sphere.h Objects/Plane.h Objects/Camera.h Objects/LightSource.h Util/vec3.h Util/Color.h 
 	$(CC) $(CFLAGS) -o $@ $<
 
-Util/Ray.o:	Util/Ray.cpp Util/Ray.h Objects/Objects.h Objects/Sphere.h Objects/Plane.h Objects/Camera.h Objects/LightSource.h Util/vec3.h Util/Color.h 
+Util/Ray.o:	Util/Ray.cpp Util/Ray.h Objects/Objects.h Objects/Sphere.h Objects/Plane.h Objects/Camera.h Objects/LightSource.h Util/vec3.h Util/Color.h Util/BoundingBox.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 clean:

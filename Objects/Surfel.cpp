@@ -41,7 +41,6 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
    else
       return -1;
 }
-
 SurfelArray createSurfelArray()
 {
    SurfelArray IA;

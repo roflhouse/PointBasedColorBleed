@@ -16,11 +16,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Hermonics {
+   float red[9];
+   float green[9];
+   float blue[9];
+   float area[9];
+} Hermonics;
 typedef struct TreeNode {
    int leaf;
    struct BoundingBox box;
    struct TreeNode *children[8];
    struct SurfelArray SA;
+   struct Hermonics hermonics;
 } TreeNode;
 typedef struct ArrayNode {
    int leaf;
@@ -43,5 +50,11 @@ typedef struct Octree {
 TreeNode createOctree( struct SurfelArray &SA, vec3 min, vec3 max );
 TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth );
 ArrayNode *createOctreeForCuda( struct SurfelArray &SA, vec3 min, vec3 max, int &size );
+Hermonics calculateSphericalHermonics( struct Surfel &surfel );
+float *getYLM(float x, float y, float z);
+void filloutHermonics( TreeNode *root );
+Hermonics createHermonics();
+void addHermonics( Hermonics &save, Hermonics &gone );
+void averageHermonics( Hermonics &save, float factor );
 
 #endif

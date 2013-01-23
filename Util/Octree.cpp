@@ -8,6 +8,8 @@
  */
 
 #include "Octree.h"
+#define PI 3.14159265359
+#define MONTE_CARLO_N 128
 
 int glob;
 int count( TreeNode *root );
@@ -31,6 +33,9 @@ TreeNode createOctree( SurfelArray &SA, vec3 min, vec3 max )
       root->leaf = true;
    //printf("Octree finished %d\n", sizeof(Surfel) * SA.num);
    int numberNodes = count( root );
+   printf("Octree constructed filling out SphericalHermonics for nodes\n");
+
+   filloutHermonics( root );
 
    printf("Octree finished %d\n", numberNodes);
    return *root;
@@ -147,6 +152,7 @@ int buildOctreeArray( TreeNode *tree, ArrayNode *octree, int &cur, SurfelArray &
 TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth )
 {
    TreeNode *ret = (TreeNode *) malloc ( sizeof( TreeNode ) );
+   ret->hermonics = createHermonics();
    ret->box = box;
    ret->SA = createSurfelArray();
    for( int i = 0; i < root->SA.num; i++ )
@@ -168,4 +174,135 @@ TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth )
       ret->leaf = true;
 
    return ret;
+}
+Hermonics calculateSphericalHermonics( struct Surfel &surfel )
+{
+   Hermonics sh;
+   for( int i = 0; i < 9; i++ )
+   {
+      sh.red[i] = 0;
+      sh.green[i] = 0;
+      sh.blue[i] = 0;
+      sh.area[i] = 0;
+   }
+
+   float area = PI * surfel.radius * surfel.radius;
+
+   //Weighted Stocasically sample phi from 0 to 2pi
+   float simple_spacing = 1.0 / MONTE_CARLO_N;
+
+   //Sum
+   for( int j = 0; j < MONTE_CARLO_N-1; j++ )
+   {
+      float phi_j = j * simple_spacing;
+      //Random Float 0->1
+      float r = (float)rand() / (float)RAND_MAX;
+      phi_j +=  r * simple_spacing;
+      float phi = 2.0 * PI * phi_j;
+      for( int i = 0; i < MONTE_CARLO_N-1; i++ )
+      {
+         float theta_i = i * simple_spacing;
+         r = (float)rand() / (float)RAND_MAX;
+         theta_i += r * simple_spacing;
+
+         float theta = 2 * acosf( sqrt( 1 - theta_i ) );
+
+         float sin_theta = sinf(theta);
+         float cos_theta = cosf(theta);
+         float sin_phi = sinf(phi);
+         float cos_phi = cosf(phi);
+         vec3 d = {sin_theta * cos_phi, sin_theta * sin_phi, cos_theta };
+         float d_dot_n = dot( d, surfel.normal );
+
+         float *TYlm = getYLM( sin_theta * cos_phi, sin_theta* sin_phi, cos_theta );
+
+         for( int i = 0; i < 9; i++ )
+         {
+            //Red
+            sh.red[i] += surfel.color.r * area * d_dot_n + TYlm[i] * sin_theta;
+            //Green
+            sh.green[i] += surfel.color.g * area * d_dot_n + TYlm[i] * sin_theta;
+            //Blue
+            sh.blue[i] += surfel.color.b * area * d_dot_n + TYlm[i] * sin_theta;
+            //area
+            sh.area[i] += area* d_dot_n + TYlm[i] *sin_theta;
+         }
+         free( TYlm );
+      }
+   }
+
+   //Average
+   averageHermonics( sh, ((4*PI)/(float)MONTE_CARLO_N));
+   return sh;
+}
+float *getYLM( float x, float y, float z )
+{
+   const static float Ylm[9] = { 0.282095, .488603,.488603,.488603,
+      1.092548, 1.092548, 1.092548, 0.315392, .546274 };
+
+   float *ret = (float *)malloc( sizeof(float) * 9 );
+   ret[0] = Ylm[0];
+   ret[1] = Ylm[1] * x;
+   ret[2] = Ylm[2] * z;
+   ret[3] = Ylm[3] * y;
+   ret[4] = Ylm[4] * x * z;
+   ret[5] = Ylm[5] * y * z;
+   ret[6] = Ylm[6] * x * y;
+   ret[7] = Ylm[7] * (3*z*z - 1);
+   ret[8] = Ylm[8] * (x*x - y*y);
+   return ret;
+}
+Hermonics createHermonics()
+{
+   Hermonics sh;
+   for( int i =0; i< 9; i++ )
+   {
+      sh.red[i] = 0;
+      sh.green[i] = 0;
+      sh.blue[i] = 0;
+      sh.area[i] = 0;
+   }
+   return sh;
+}
+void addHermonics( Hermonics &save, Hermonics &gone )
+{
+   for( int j= 0; j < 9; j++ )
+   {
+      save.red[j] += gone.red[j];
+      save.green[j] += gone.green[j];
+      save.blue[j] += gone.blue[j];
+      save.area[j] += gone.area[j];
+   }
+}
+void averageHermonics( Hermonics &save, float factor )
+{
+   for( int j = 0; j < 9; j++ )
+   {
+      save.red[j] += factor;
+      save.green[j] += factor;
+      save.blue[j] += factor;
+      save.area[j] += factor;
+   }
+}
+
+void filloutHermonics( TreeNode *root )
+{
+   if( root->leaf )
+   {
+      if( root->SA.num > 0 )
+         root->hermonics = calculateSphericalHermonics(root->SA.array[0]);
+      for(int i = 1; i < root->SA.num; i++ )
+      {
+         Hermonics temp = calculateSphericalHermonics( root->SA.array[0] );
+         addHermonics( root->hermonics, temp );
+      }
+   }
+   else
+   {
+      for( int j = 0; j < 8; j++ )
+      {
+         filloutHermonics( root->children[j] );
+         addHermonics( root->hermonics, root->children[j]->hermonics );
+      }
+   }
 }

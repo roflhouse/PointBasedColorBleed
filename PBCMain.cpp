@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
    int size = 0;
 
    SurfelArray SA = createSurfelArray();
-   ArrayNode *surfels = createSurfelsCuda( scene, rays, number, SA, size ); 
-   //TreeNode surfels = createSurfelTree( scene, rays, number );
+   //ArrayNode *surfels = createSurfelsCuda( scene, rays, number, SA, size ); 
+   TreeNode surfels = createSurfelTree( scene, rays, number );
    //SurfelArray surfels = createSurfels( scene, rays, number );
    free( rays );
 
@@ -59,16 +59,16 @@ int main(int argc, char *argv[])
    Color *buffer = outfile.getBuffer();
 
    //Scene s2 = createSurfelSpheres( scene, rays, number );
-   castRaysCuda( surfels, size, SA, rays, number, buffer, width_of_image, height_of_image );
+   //castRaysCuda( surfels, size, SA, rays, number, buffer, width_of_image, height_of_image );
    //castRays( surfels, size, SA, rays, number, buffer, width_of_image );
    free( scene.spheres );
    free( scene.planes );
    free( scene.triangles );
    free( scene.pointLights );
-   free( surfels );
+   //free( surfels );
    free( rays );
    freeSurfelArray( SA );
-   //castRays( surfels, rays, number, buffer, width_of_image );
+   castRays( surfels, rays, number, buffer, width_of_image );
    //castRaysSphere( s2, rays, number, buffer, width_of_image );
    //castRays( scene, rays, number, buffer, width_of_image );
 

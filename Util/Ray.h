@@ -18,6 +18,8 @@ typedef struct TreeHitMark {
    float t;
    Color color;
 } TreeHitMark;
+void evaluateSphereicalHermonics();
+void evaluateSphereicalHermonicsPower();
 
 #include "Scene.h"
 #include "Intersection.h"
@@ -44,4 +46,6 @@ struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int n
       SurfelArray &SA, int &size );
 Color raytrace( const struct ArrayNode *Tree, int size, SurfelArray &SA, const Ray &ray );
 struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int numRays, int &size );
+
+void traverseOctreeCPU( TreeNode &node, float maxangle );
 #endif
