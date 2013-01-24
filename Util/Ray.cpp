@@ -518,3 +518,79 @@ void evaluateSphereicalHermonics()
 void evaluateSphereicalHermonicsPower()
 {
 }
+void createCubeVectors( RasterCube &cube, Intersection &position )
+{
+   cube.up = position.normal;
+   //Find another vector for right
+   //find 2 smallest components
+   if(position.normal.x < position.normal.y)
+   {
+      if(position.normal.y < position.normal.z)
+      {
+         cube.right.x = position.hitMark.x + 1;
+         cube.right.y = position.hitMark.y + 1;
+
+         cube.right.z = (position.normal.x *(cube.right.x - position.hitMark.x) +
+               position.normal.y *(cube.right.y - position.hitMark.y)) / position.normal.z
+            + position.hitMark.z;
+      }
+      else
+      {
+         cube.right.x = position.hitMark.x + 1;
+         cube.right.z = position.hitMark.z + 1;
+
+         cube.right.y = (position.normal.x *(cube.right.x - position.hitMark.x) +
+               position.normal.z *(cube.right.z - position.hitMark.z)) / position.normal.y
+            + position.hitMark.y;
+      }
+   }
+   else
+   {
+      if(position.normal.x < position.normal.z)
+      {
+         cube.right.x = position.hitMark.x + 1;
+         cube.right.y = position.hitMark.y + 1;
+
+         cube.right.z = (position.normal.x *(cube.right.x - position.hitMark.x) +
+               position.normal.y *(cube.right.y - position.hitMark.y)) / position.normal.z
+            + position.hitMark.z;
+      }
+      else
+      {
+         cube.right.y = position.hitMark.y + 1;
+         cube.right.z = position.hitMark.z + 1;
+
+         cube.right.x = (position.normal.y *(cube.right.y - position.hitMark.y) +
+               position.normal.z *(cube.right.z - position.hitMark.z)) / position.normal.x
+            + position.hitMark.x;
+      }
+   }
+   cube.right = unit(cube.right);
+   cube.in = cross( cube.up, cube.right ); 
+   //Have camera vectors for sides of cubes.
+}
+void rasterizeSurfelsToCube( RasterCube &cube, Intersection &position, SurfelArray &sa )
+{
+   for( int i =0; i < sa.num; i++ )
+   {
+      rasterizeSurfel( cube, position, sa.array[i] );
+   }
+}
+void rasterizeSurfel( RasterCube &cube, Intersection &position, Surfel &surfel )
+{
+   //rasterizeSurfelToSide( SIDEOFCUBE, up vec, right vec, in vec, surfel )
+   vec3 up = cube.up;
+   vec3 in = cube.in;
+   vec3 right = cube.right;
+   vec3 down = neg(cube.up);
+   vec3 left = neg(cube.right);
+   vec3 out = neg(cube.in);
+   rasterizeSurfelToSide( cube.topface, in, right, down, surfel );
+
+   rasterizeSurfelToSide( cube.frontface, up, right, in,  surfel );
+   rasterizeSurfelToSide( cube.backface, up, left, out, surfel);
+
+   rasterizeSurfelToSide( cube.rightface, up, in, left, surfel);
+   rasterizeSurfelToSide( cube.leftface, up, out, right, surfel);
+
+}
