@@ -10,6 +10,7 @@
 
 #define PI 3.141592
 #define MAXDEPTH 15
+#define MAX_ANGLE 1.0
 
 int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
 {
@@ -99,11 +100,56 @@ void castRays( const SurfelArray &surfels, Ray *rays, int numRays, Color *buffer
       buffer[rays[i].i*width + rays[i].j] = raytrace( surfels, rays[i] );
    }
 }
+void initCuberays( vec3 ***cuberays )
+{
+   //cube size does not matter.
+
+   //Front
+   for( int i = 0; i < 8; i++ )
+   {
+      for( int j =0; j < 8; j++ )
+      {
+         vec3 ray;
+         //front 
+         ray.x = -1 + (0.25/*2.0/8.0*/) * j;
+         ray.y = 1 - (0.25) * i;
+         ray.z = 1;
+         cuberays[0][i][j] = unit(ray); 
+         //right
+         ray.x = 1;
+         ray.y = 1 - .25 * j;
+         ray.z = 1 - .25 * i;
+         cuberays[1][i][j] = unit(ray);
+         //back
+         ray.x = 1 - .25 * j; 
+         ray.y = 1 - .25 * i;
+         ray.z = -1;
+         cuberays[2][i][j] = unit(ray);
+         //left
+         ray.x = -1;
+         ray.y = 1 - .25 * j;
+         ray.z = -1 + .25 *i;
+         cuberays[3][i][j] = unit(ray);
+         //bottom
+         ray.x = -1 + .25  * j;
+         ray.y = -1;
+         ray.z = 1 - .25 * i;
+         cuberays[4][i][j] = unit(ray);
+         //top
+         ray.x = -1 + .25 * j;
+         ray.y = -1;
+         ray.z = -1 + .25 * i;
+         cuberays[5][i][j] = unit(ray);
+      }
+   }
+}
 void castRays( const TreeNode &tree, Ray *rays, int numRays, Color *buffer, int width )
 {
+   vec3 cuberays[6][8][8];
+   initCuberays( cuberays );
    for( int i = 0; i < numRays; i++ )
    {
-      buffer[rays[i].i*width + rays[i].j] = raytrace( tree, rays[i] );
+      buffer[rays[i].i*width + rays[i].j] = raytrace( tree, rays[i], cuberays );
    }
 }
 void castRays( const ArrayNode *tree, int size, struct SurfelArray &SA, Ray *rays, int numRays, Color *buffer, int width )
@@ -365,7 +411,7 @@ Color raytrace( const struct SurfelArray &SA, const Ray &ray )
    }
    return limitColor( color );
 }
-Color raytrace( const struct TreeNode &tree, const Ray &ray )
+Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay )
 {
    Color color;
    color.r = 0;
@@ -374,7 +420,29 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray )
 
    TreeHitMark cur = transTree( tree, ray );
    if ( cur.t > 0 )
-      return cur.color;
+      RasterCube cube;
+   for( int i = 0; i <6; i++)
+      for( int j = 0; j<8; j++)
+         for( int k =0; k<8;k++)
+         {
+            float ndotr = dot(cur.surfel.normal, cuberay[i][j][k]);
+            if( ndotr < 0.001 )
+            { 
+               cube.sides[i][j][k] = 0;
+               cube.depth[i][j][k] = -1;
+            }
+            else {
+               cube.sides[i][j][k] = 0;
+               cube.depth[i][j][k] = 101;
+            }
+         }
+   vec3 hit;
+   hit.x = ray.pos.x + ray.dir.x * cur.t;
+   hit.y = ray.pos.y + ray.dir.y * cur.t;
+   hit.z = ray.pos.z + ray.dir.z * cur.t;
+
+   traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, cur.surfel.normal, cuberay );
+   return cur.color;
    else
       return color;
 }
@@ -397,6 +465,7 @@ TreeHitMark transTree( TreeNode tree, const Ray &ray )
             {
                if( cur.t < best.t || best.t < 0 )
                {
+                  best.surfel = tree.SA.array[j];
                   best.color = tree.SA.array[j].color;
                   best.t = cur.t;
                }
@@ -484,22 +553,36 @@ Color raytrace( const struct ArrayNode *tree, int size, SurfelArray &SA, const R
    return color;
 }
 
-void transverseOctreeCPU( TreeNode &node, float maxangle, Intersection position )
+void traverseOctreeCPU( RasterCube &cube, TreeNode &node, float maxangle,
+      vec3 &position, vec3 normal, vec3 ***cuberays )
 {
    if( node.leaf == 1 )
    {
-      for( int i = 0; i < node.SA.num; i++ )
+      float distance = 0;
+      for( int i = 0; i < sa.num; i++ )
       {
-         //rasterize Surfel
+         distance = distance( position, sa.array[i].pos );
+         if ( distance < sa.radius )
+            raytraceSurfelToCube( cube, sa.array[i], cuberays, position );
+         else
+            rasterizeSufelToCube( cube, sa.array[i] );
       }
    }
    else
    {
-      if( belowHorizon( node.box, position.hitMark, position.normal ) )
+      if( belowHorizon( node.box, position, normal ) )
          return;
-      evaluateSphereicalHermonics( );
-      int distance = 0;
-      float area = 0;
+      vec3 center;
+      center = newDirection(node.box.max, node.box.min);
+      center.x /= 2;
+      center.y /= 2;
+      center.z /= 2;
+
+      vec3 centerToEye = newDirection( position,center );
+      centerToEye = unit(centerToEye);
+
+      float distance = distance( center, position ); 
+      float area = evaluateSphericalHermonicsArea( node, eyeToNode );
       float solidangle = area / (distance *distance);
       if( solidangle < maxangle )
       {
@@ -509,88 +592,143 @@ void transverseOctreeCPU( TreeNode &node, float maxangle, Intersection position 
       else
          for( int i = 0; i < 8; i++)
             if( node.children[i] != NULL )
-               transverseOctreeCPU( node, maxangle, position );
+               traverseOctreeCPU( cube, node, maxangle, position );
    }
 }
-void evaluateSphereicalHermonics()
+void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 &position )
 {
 }
-void evaluateSphereicalHermonicsPower()
+void rayTraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position )
 {
+   for( int i = 0; i < 6; i++ )
+   {
+      for( int j = 0; j < 8; j ++ )
+      {
+         for( int k = 0; k < 8; k++ )
+         {
+            if( cube.depth[i][j][k] > 0.0001 )
+            {
+               Ray ray;
+               ray.dir = cuberays[i][j][k];
+               ray.pos = position;
+               float t = surfelHitTest( surfel, ray );
+               if( t > 0 && t < cube.depth[i][j][k] )
+               {
+                  cube.depth[i][j][k] = t;
+                  cube.sides[i][j][k] = surfel.color;
+               }
+            }
+         }
+      }
+   }
+}
+void evaluateSphereicalHermonicsArea( TreeNode &node, vec3 &centerToEye )
+{
+   theta = acosf( centerToEye.z );
+   phi = atanf( centerToEye.y / centerToEye.x );
+   float sin_theta = sinf(theta);
+   float cos_theta = cosf(theta);
+   float cos_phi = cosf(phi);
+   float sin_phi = sinf(phi); 
+   float * TYlm = getYLM( sin_theta *cos_phi, sin_theta * sin_phi, cos_theta ); 
+   float area = 0;
+
+   for( int i =0; i < 9; i++ )
+   {
+      area += node.hermonics.area[i] * TYlm[i];
+   }
+   return area;
+}
+void evaluateSphereicalHermonicsPower( TreeNode &node, vec3 &centerToEye )
+{
+   theta = acosf( centerToEye.z );
+   phi = atanf( centerToEye.y / centerToEye.x );
+   float sin_theta = sinf(theta);
+   float cos_theta = cosf(theta);
+   float cos_phi = cosf(phi);
+   float sin_phi = sinf(phi); 
+   float * TYlm = getYLM( sin_theta *cos_phi, sin_theta * sin_phi, cos_theta ); 
+   Color color;
+   color.r = 0;
+   color.g = 0;
+   color.b = 0;
+
+   for( int i =0; i < 9; i++ )
+   {
+      color.r += node.hermonics.red[i] * TYlm[i];
+      color.g += node.hermonics.green[i] * TYlm[i];
+      color.b += node.hermonics.blue[i] * TYlm[i];
+   }
+   return color;
+}
+
+/*
+   void rasterizeSurfelVaribleVectors( RasterCube &cube, Intersection &position, Surfel &surfel ) {
+//rasterizeSurfelToSide( SIDEOFCUBE, up vec, right vec, in vec, surfel )
+vec3 up = cube.up;
+vec3 in = cube.in;
+vec3 right = cube.right;
+vec3 down = neg(cube.up);
+vec3 left = neg(cube.right);
+vec3 out = neg(cube.in);
+rasterizeSurfelToSide( cube.topface, in, right, down, surfel );
+
+rasterizeSurfelToSide( cube.frontface, up, right, in,  surfel );
+rasterizeSurfelToSide( cube.backface, up, left, out, surfel);
+
+rasterizeSurfelToSide( cube.rightface, up, in, left, surfel);
+rasterizeSurfelToSide( cube.leftface, up, out, right, surfel);
+
 }
 void createCubeVectors( RasterCube &cube, Intersection &position )
 {
-   cube.up = position.normal;
-   //Find another vector for right
-   //find 2 smallest components
-   if(position.normal.x < position.normal.y)
-   {
-      if(position.normal.y < position.normal.z)
-      {
-         cube.right.x = position.hitMark.x + 1;
-         cube.right.y = position.hitMark.y + 1;
-
-         cube.right.z = (position.normal.x *(cube.right.x - position.hitMark.x) +
-               position.normal.y *(cube.right.y - position.hitMark.y)) / position.normal.z
-            + position.hitMark.z;
-      }
-      else
-      {
-         cube.right.x = position.hitMark.x + 1;
-         cube.right.z = position.hitMark.z + 1;
-
-         cube.right.y = (position.normal.x *(cube.right.x - position.hitMark.x) +
-               position.normal.z *(cube.right.z - position.hitMark.z)) / position.normal.y
-            + position.hitMark.y;
-      }
-   }
-   else
-   {
-      if(position.normal.x < position.normal.z)
-      {
-         cube.right.x = position.hitMark.x + 1;
-         cube.right.y = position.hitMark.y + 1;
-
-         cube.right.z = (position.normal.x *(cube.right.x - position.hitMark.x) +
-               position.normal.y *(cube.right.y - position.hitMark.y)) / position.normal.z
-            + position.hitMark.z;
-      }
-      else
-      {
-         cube.right.y = position.hitMark.y + 1;
-         cube.right.z = position.hitMark.z + 1;
-
-         cube.right.x = (position.normal.y *(cube.right.y - position.hitMark.y) +
-               position.normal.z *(cube.right.z - position.hitMark.z)) / position.normal.x
-            + position.hitMark.x;
-      }
-   }
-   cube.right = unit(cube.right);
-   cube.in = cross( cube.up, cube.right ); 
-   //Have camera vectors for sides of cubes.
-}
-void rasterizeSurfelsToCube( RasterCube &cube, Intersection &position, SurfelArray &sa )
+cube.up = position.normal;
+//Find another vector for right
+//find 2 smallest components
+if(position.normal.x < position.normal.y)
 {
-   for( int i =0; i < sa.num; i++ )
-   {
-      rasterizeSurfel( cube, position, sa.array[i] );
-   }
-}
-void rasterizeSurfel( RasterCube &cube, Intersection &position, Surfel &surfel )
+if(position.normal.y < position.normal.z)
 {
-   //rasterizeSurfelToSide( SIDEOFCUBE, up vec, right vec, in vec, surfel )
-   vec3 up = cube.up;
-   vec3 in = cube.in;
-   vec3 right = cube.right;
-   vec3 down = neg(cube.up);
-   vec3 left = neg(cube.right);
-   vec3 out = neg(cube.in);
-   rasterizeSurfelToSide( cube.topface, in, right, down, surfel );
+cube.right.x = position.hitMark.x + 1;
+cube.right.y = position.hitMark.y + 1;
 
-   rasterizeSurfelToSide( cube.frontface, up, right, in,  surfel );
-   rasterizeSurfelToSide( cube.backface, up, left, out, surfel);
-
-   rasterizeSurfelToSide( cube.rightface, up, in, left, surfel);
-   rasterizeSurfelToSide( cube.leftface, up, out, right, surfel);
-
+cube.right.z = (position.normal.x *(cube.right.x - position.hitMark.x) +
+position.normal.y *(cube.right.y - position.hitMark.y)) / position.normal.z
++ position.hitMark.z;
 }
+else
+{
+cube.right.x = position.hitMark.x + 1;
+cube.right.z = position.hitMark.z + 1;
+
+cube.right.y = (position.normal.x *(cube.right.x - position.hitMark.x) +
+position.normal.z *(cube.right.z - position.hitMark.z)) / position.normal.y
++ position.hitMark.y;
+}
+}
+else
+{
+if(position.normal.x < position.normal.z)
+{
+cube.right.x = position.hitMark.x + 1;
+cube.right.y = position.hitMark.y + 1;
+
+cube.right.z = (position.normal.x *(cube.right.x - position.hitMark.x) +
+position.normal.y *(cube.right.y - position.hitMark.y)) / position.normal.z
++ position.hitMark.z;
+}
+else
+{
+cube.right.y = position.hitMark.y + 1;
+cube.right.z = position.hitMark.z + 1;
+
+cube.right.x = (position.normal.y *(cube.right.y - position.hitMark.y) +
+position.normal.z *(cube.right.z - position.hitMark.z)) / position.normal.x
++ position.hitMark.x;
+}
+}
+cube.right = unit(cube.right);
+cube.in = cross( cube.up, cube.right );
+//Have camera vectors for sides of cubes.
+}
+ */

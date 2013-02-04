@@ -11,13 +11,10 @@
 #define RAY_H
 #include "vec3.h"
 #include "Color.h"
+#include "RasterCube.h"
 
 #include "../Objects/Objects.h"
 #include "RayType.h"
-typedef struct TreeHitMark {
-   float t;
-   Color color;
-} TreeHitMark;
 void evaluateSphereicalHermonics();
 void evaluateSphereicalHermonicsPower();
 
@@ -36,6 +33,11 @@ struct TreeNode createSurfelTree( const struct Scene &scene, Ray *rays, int numR
 void castRays( const struct TreeNode &scene, struct Ray *rays, int numRays, Color *buffer, int width );
 Color raytrace( const struct TreeNode &Tree, const Ray &ray );
 #include "../Objects/Surfel.h"
+typedef struct TreeHitMark {
+   float t;
+   Surfel surfel;
+   Color color;
+} TreeHitMark;
 Color raytrace( const struct SurfelArray &scene, const Ray &ray );
 
 TreeHitMark transTree( TreeNode root, const Ray &ray );
@@ -47,5 +49,8 @@ struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int n
 Color raytrace( const struct ArrayNode *Tree, int size, SurfelArray &SA, const Ray &ray );
 struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int numRays, int &size );
 
-void traverseOctreeCPU( TreeNode &node, float maxangle );
+void traverseOctreeCPU( RasterCube &cube, TreeNode &node, float maxangle, vec3 &position,
+      vec3 normal );
+void rasterizeSurfelsToCube( RasterCube &cube, Intersection &position, SurfelArray &sa );
+void rasterizeSurfel( RasterCube &cube, Intersection &position, Surfel &surfel );
 #endif

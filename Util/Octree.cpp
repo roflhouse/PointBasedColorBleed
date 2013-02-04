@@ -290,7 +290,9 @@ void filloutHermonics( TreeNode *root )
    if( root->leaf )
    {
       if( root->SA.num > 0 )
+      {
          root->hermonics = calculateSphericalHermonics(root->SA.array[0]);
+      }
       for(int i = 1; i < root->SA.num; i++ )
       {
          Hermonics temp = calculateSphericalHermonics( root->SA.array[0] );
