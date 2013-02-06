@@ -31,7 +31,7 @@ Color raytrace2( const struct Scene &scene, const Ray &ray );
 #include "Octree.h"
 struct TreeNode createSurfelTree( const struct Scene &scene, Ray *rays, int numRays );
 void castRays( const struct TreeNode &scene, struct Ray *rays, int numRays, Color *buffer, int width );
-Color raytrace( const struct TreeNode &Tree, const Ray &ray );
+Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, glm::mat4 *cubtrans );
 #include "../Objects/Surfel.h"
 typedef struct TreeHitMark {
    float t;
@@ -49,8 +49,10 @@ struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int n
 Color raytrace( const struct ArrayNode *Tree, int size, SurfelArray &SA, const Ray &ray );
 struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int numRays, int &size );
 
-void traverseOctreeCPU( RasterCube &cube, TreeNode &node, float maxangle, vec3 &position,
-      vec3 normal );
-void rasterizeSurfelsToCube( RasterCube &cube, Intersection &position, SurfelArray &sa );
-void rasterizeSurfel( RasterCube &cube, Intersection &position, Surfel &surfel );
+void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle, vec3 &position,
+      vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetrans );
+void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePosition,
+      glm::mat4 *cubetransforms, vec3 &position);
+void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetransforms,
+      vec3 &position );
 #endif

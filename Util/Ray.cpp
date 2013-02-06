@@ -110,18 +110,18 @@ void initCuberays( vec3 ***cuberays )
       for( int j =0; j < 8; j++ )
       {
          vec3 ray;
-         //front 
+         //front
          ray.x = -1 + (0.25/*2.0/8.0*/) * j;
          ray.y = 1 - (0.25) * i;
          ray.z = 1;
-         cuberays[0][i][j] = unit(ray); 
+         cuberays[0][i][j] = unit(ray);
          //right
          ray.x = 1;
          ray.y = 1 - .25 * j;
          ray.z = 1 - .25 * i;
          cuberays[1][i][j] = unit(ray);
          //back
-         ray.x = 1 - .25 * j; 
+         ray.x = 1 - .25 * j;
          ray.y = 1 - .25 * i;
          ray.z = -1;
          cuberays[2][i][j] = unit(ray);
@@ -143,13 +143,64 @@ void initCuberays( vec3 ***cuberays )
       }
    }
 }
+void initCubeTransforms( glm::mat4 **cubetrans )
+{
+   glm::vec4 x = glm::vec4( 1.0, 0.0, 0.0, 0.0 );
+   glm::vec4 y = glm::vec4( 0.0, 1.0, 0.0, 0.0 );
+   glm::vec4 z = glm::vec4( 0.0, 0.0, 1.0, 0.0 );
+   *cubetrans = new glm::mat4[6];
+
+   //front w = neg Z, u= neg x, v = pos y
+   glm::mat4 *front = (*cubetrans);
+   *front = glm::mat4(1.0); //build ident
+   (*front)[0] = -x;
+   (*front)[1] = y;
+   (*front)[2] = -z;
+
+   //right w = neg x, u = pos z, v pos y
+   glm::mat4 *right = &((*cubetrans)[1]);
+   *right = glm::mat4(1.0); //build ident
+   (*right)[0] =z;
+   (*right)[1] =y;
+   (*right)[2] =-x;
+
+   //back w = pos z, u=  pos x, v = pos y
+   glm::mat4 *back = &((*cubetrans)[2]);
+   *back = glm::mat4(1.0); //build ident
+   (*back)[0] =x;
+   (*back)[1] =y;
+   (*back)[2] =z;
+
+   //left w = pos x, u neg z, v pos y
+   glm::mat4 *left = &((*cubetrans)[3]);
+   *left = glm::mat4(1.0); //build ident
+   (*left)[0] = -z;
+   (*left)[1] = y;
+   (*left)[2] = x;
+
+   //bottom w = pos y, pos x, v = neg z
+   glm::mat4 *bottom = &((*cubetrans)[4]);
+   *bottom = glm::mat4(1.0); //build ident
+   (*bottom)[0] = x;
+   (*bottom)[1] = -z;
+   (*bottom)[2] = y;
+
+   //top w = -y, u = pos x, v = pos z
+   glm::mat4 *top = &((*cubetrans)[5]);
+   *top = glm::mat4(1.0); //build ident
+   (*top)[0] = x;
+   (*top)[1] = z;
+   (*top)[2] = -y;
+}
 void castRays( const TreeNode &tree, Ray *rays, int numRays, Color *buffer, int width )
 {
    vec3 cuberays[6][8][8];
-   initCuberays( cuberays );
+   glm::mat4 *cubetrans;
+   initCuberays( (vec3***)cuberays );
+   initCubeTransforms( &cubetrans );
    for( int i = 0; i < numRays; i++ )
    {
-      buffer[rays[i].i*width + rays[i].j] = raytrace( tree, rays[i], cuberays );
+      buffer[rays[i].i*width + rays[i].j] = raytrace( tree, rays[i], (vec3 ***)cuberays, cubetrans );
    }
 }
 void castRays( const ArrayNode *tree, int size, struct SurfelArray &SA, Ray *rays, int numRays, Color *buffer, int width )
@@ -411,7 +462,7 @@ Color raytrace( const struct SurfelArray &SA, const Ray &ray )
    }
    return limitColor( color );
 }
-Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay )
+Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, glm::mat4 *cubetrans )
 {
    Color color;
    color.r = 0;
@@ -420,30 +471,31 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay )
 
    TreeHitMark cur = transTree( tree, ray );
    if ( cur.t > 0 )
+   {
       RasterCube cube;
-   for( int i = 0; i <6; i++)
-      for( int j = 0; j<8; j++)
-         for( int k =0; k<8;k++)
-         {
-            float ndotr = dot(cur.surfel.normal, cuberay[i][j][k]);
-            if( ndotr < 0.001 )
-            { 
-               cube.sides[i][j][k] = 0;
-               cube.depth[i][j][k] = -1;
+      for( int i = 0; i <6; i++)
+         for( int j = 0; j<8; j++)
+            for( int k =0; k<8;k++)
+            {
+               float ndotr = dot(cur.surfel.normal, cuberay[i][j][k]);
+               if( ndotr < 0.001 )
+               {
+                  cube.sides[i][j][k] = color;
+                  cube.depth[i][j][k] = -1;
+               }
+               else {
+                  cube.sides[i][j][k] = color;
+                  cube.depth[i][j][k] = FAR_PLANE+1;
+               }
             }
-            else {
-               cube.sides[i][j][k] = 0;
-               cube.depth[i][j][k] = 101;
-            }
-         }
-   vec3 hit;
-   hit.x = ray.pos.x + ray.dir.x * cur.t;
-   hit.y = ray.pos.y + ray.dir.y * cur.t;
-   hit.z = ray.pos.z + ray.dir.z * cur.t;
+      vec3 hit;
+      hit.x = ray.pos.x + ray.dir.x * cur.t;
+      hit.y = ray.pos.y + ray.dir.y * cur.t;
+      hit.z = ray.pos.z + ray.dir.z * cur.t;
 
-   traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, cur.surfel.normal, cuberay );
-   return cur.color;
-   else
+      traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, cur.surfel.normal, cuberay, cubetrans );
+   }
+   //TODO:
       return color;
 }
 TreeHitMark transTree( TreeNode tree, const Ray &ray )
@@ -553,19 +605,19 @@ Color raytrace( const struct ArrayNode *tree, int size, SurfelArray &SA, const R
    return color;
 }
 
-void traverseOctreeCPU( RasterCube &cube, TreeNode &node, float maxangle,
-      vec3 &position, vec3 normal, vec3 ***cuberays )
+void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
+      vec3 &position, vec3 normal, vec3 ***cuberays, glm::mat4 *cubetransforms )
 {
    if( node.leaf == 1 )
    {
-      float distance = 0;
-      for( int i = 0; i < sa.num; i++ )
+      float dis = 0;
+      for( int i = 0; i < node.SA.num; i++ )
       {
-         distance = distance( position, sa.array[i].pos );
-         if ( distance < sa.radius )
-            raytraceSurfelToCube( cube, sa.array[i], cuberays, position );
+         dis = distance( position, node.SA.array[i].pos );
+         if ( dis < node.SA.array[i].radius )
+            raytraceSurfelToCube( cube, node.SA.array[i], cuberays, position );
          else
-            rasterizeSufelToCube( cube, sa.array[i] );
+            rasterizeSufelToCube( cube, node.SA.array[i], cubetransforms );
       }
    }
    else
@@ -581,13 +633,14 @@ void traverseOctreeCPU( RasterCube &cube, TreeNode &node, float maxangle,
       vec3 centerToEye = newDirection( position,center );
       centerToEye = unit(centerToEye);
 
-      float distance = distance( center, position ); 
+      float distance = distance( center, position );
       float area = evaluateSphericalHermonicsArea( node, eyeToNode );
       float solidangle = area / (distance *distance);
-      if( solidangle < maxangle )
+      if( solidangle < maxangle && area > 0.01 )
       {
-         evaluateSphereicalHermonicsPower( );
-         //rasterize the cluster as a disk
+         Color c = evaluateSphereicalHermonicsPower( );
+         rasterizeClusterToCube( cube, c, area, cubeTransforms )
+            //rasterize the cluster as a disk
       }
       else
          for( int i = 0; i < 8; i++)
@@ -595,8 +648,212 @@ void traverseOctreeCPU( RasterCube &cube, TreeNode &node, float maxangle,
                traverseOctreeCPU( cube, node, maxangle, position );
    }
 }
-void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 &position )
+glm::vec4 *getWVecs( )
 {
+   glm::vec4 *ret = new glm::vec4[6];
+   //front w = neg Z, u= neg x, v = pos y
+   ret[0] = glm::vec4( 0.0, 0.0, -1.0, 0.0 );
+   //right w = neg x, u = pos z, v pos y
+   ret[1] = glm::vec4( -1.0, 0.0, 0.0, 0.0 );
+   //back w = pos z, u=  pos x, v = pos y
+   ret[2] = glm::vec4( 0.0, 0.0, 1.0, 0.0 );
+   //left w = pos x, u neg z, v pos y
+   ret[3] = glm::vec4( 1.0, 0.0, 0.0, 0.0 );
+   //bottom w = pos y, pos x, v = neg z
+   ret[4] = glm::vec4( 0.0, 1.0, 0.0, 0.0 );
+   //top w = -y, u = pos x, v = pos z
+   ret[5] = glm::vec4( 0.0, -1.0, 0.0, 0.0 );
+}
+glm::vec4 *getAxisAlinedPoints( vec3 position, float len, int side )
+{
+   glm::vec4 *ret = new glm::vec4[4];
+   if( k == 0 || k == 2 ) // front and back: x,y pin z
+   {
+      ret[0] = glm::vec4( position.x - len, position.y + len, position.z, 1.0 );
+      ret[1] = glm::vec4( position.x + len, position.y + len, position.z, 1.0 );
+      ret[2] = glm::vec4( position.x + len, position.y - len, position.z, 1.0 );
+      ret[3] = glm::vec4( position.x - len, position.y - len, position.z, 1.0 );
+   }
+   else if ( k == 1 || k == 3 ) //right and left: y,z pin x
+   {
+      ret[0] = glm::vec4( position.x, position.y + len, position.z - len, 1.0 );
+      ret[1] = glm::vec4( position.x, position.y + len, position.z + len, 1.0 );
+      ret[2] = glm::vec4( position.x, position.y - len, position.z + len, 1.0 );
+      ret[3] = glm::vec4( position.x, position.y - len, position.z - len, 1.0 );
+   }
+   else //top and bottom: x,z pin y
+   {
+      ret[0] = glm::vec4( position.x - len, position.y, position.z + len, 1.0 );
+      ret[1] = glm::vec4( position.x + len, position.y, position.z + len, 1.0 );
+      ret[2] = glm::vec4( position.x + len, position.y, position.z - len, 1.0 );
+      ret[3] = glm::vec4( position.x - len, position.y, position.z - len, 1.0 );
+   }
+   return ret;
+}
+glm::mat4 getProjectMatrix()
+{
+   glm::mat4 ret = glm::mat4(1.0);
+   ret[0] = glm::vec4( NEAR_PLANE, 0, 0, 0 );
+   ret[1] = glm::vec4( 0, NEAR_PLANE, 0, 0 );
+   ret[2] = glm::vec4( 0, 0, NEAR_PLANE + FAR_PLANE, - NEAR_PLANE * FAR_PLANE );
+   ret[3] = glm::vec4( 0, 0, 1, 0 );
+   return ret;
+}
+glm::mat4 getOrthMatrix()
+{
+   glm::mat4 ret = glm::mat4( 1.0 );
+   ret[0] = glm::vec4( 2.0/(RIGHT - LEFT), 0, 0, -(RIGHT +LEFT)/(RIGHT -LEFT) );
+   ret[1] = glm::vec4( 0, 2.0/(TOP-BOTTOM), 0, -(TOP + BOTTOM)/(TOP-BOTTOM) );
+   ret[2] = glm::vec4( 0, 0, 2.0/(NEAR_PLANE - FAR_PLANE),
+         -(NEAR_PLANE + FAR_PLANE)/(NEAR_PLANE - FARPLANE) );
+   ret[3] = glm::vec4( 0, 0, 0, 1.0 );
+   return ret;
+}
+glm::mat4 getViewPixelMatrix()
+{
+   glm::mat4 ret = glm::mat4(1.0);
+   ret[0] = glm::vec4( NPIXELS/2.0, 0 ,0, (NPIXELS - 1)/2.0 );
+   ret[1] = glm::vec4( 0, NPIXELS/2.0, 0, (NPIXELS - 1)/2.0 );
+   return ret;
+}
+void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePosition,
+      glm::mat4 *cubetransforms, vec3 &position)
+{
+   const static glm::mat4 M = getViewPixelMatrix() * getOrthMatrix() * getProjectMatrix();
+   glm::mat4 eyeTrans = glm::mat4(1.0);
+   eyeTrans[0][3] = -position.x;
+   eyeTrans[1][3] = -position.y;
+   eyeTrans[2][3] = -position.z;
+   float length = sqrtf(area);
+   for( int k = 0; k< 6; k++ )
+   {
+      glm::mat4 cur = M * cubetransforms[k] * eyeTrans;
+      glm::vec4 middle = glm::vec4( nodePosition.x, nodePosition.y, nodePosition.z, 1.0 );
+      glm::vec4 temp = cur * middle;
+      temp[0] /= temp[3];
+      temp[1] /= temp[3];
+      temp[2] /= temp[3];
+      temp[3] = 1;
+      if (temp[0] > 0 && temp[0] < NPIXELS && temp[1] > 0 && temp[1] < NPIXELS )
+      {
+         float length = sqrtf( area[k] );
+         glm::vec4 *points = getAxisAlinedPoints( surfel.position, length/2.0, k );
+         points[0] = cur * points[0];
+         points[1] = cur * points[1];
+         points[2] = cur * points[2];
+         points[3] = cur * points[3];
+         for( int i = 0; i < 4; i++ )
+         {
+            points[i][0] /= points[i][3];
+            points[i][1] /= points[i][3];
+            points[i][2] /= points[i][3];
+            points[i][3] = 1;
+         }
+         int minX = 0;
+         int minY = 0;
+         int maxX = 0;
+         int maxY = 0;
+         minX = points[0][0];
+         maxX = points[0][0];
+         minY = points[0][1];
+         maxY = points[0][1];
+         for( int i = 0; i < 4; i++ )
+         {
+            if( minX > points[i][0] )
+               minX = points[i][0];
+            if( minY > points[i][1] )
+               minY = points[i][1];
+            if( maxX < points[i][0] )
+               maxX = points[i][0];
+            if( maxY < points[i][1] )
+               maxY = points[i][1];
+         }
+         float dis = distance( position, surfel.position );
+         for( int i = minY; i < maxY; i++ )
+         {
+            for( int j = minX; j < maxX; j++ )
+            {
+               cube.sides[k][i][j] = surfel.color;
+               cube.depth[k][i][j] = dis;
+            }
+         }
+         delete []points;
+      }
+   }
+}
+void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetransforms,
+      vec3 &position )
+{
+   const static glm::mat4 M = getViewPixelMatrix() * getOrthMatrix() * getProjectMatrix();
+   const static glm::vec4 *wVecs = getWVecs();
+   //get projected area for each side
+   float areas[6];
+   for( int i =0; i < 6; i++ )
+      areas[i] = glm::dot( wVecs[i], surfel.normal ) * area;
+
+   glm::mat4 eyeTrans = glm::mat4(1.0);
+   eyeTrans[0][3] = -position.x;
+   eyeTrans[1][3] = -position.y;
+   eyeTrans[2][3] = -position.z;
+
+   //For each face
+   for( int k = 0; k< 6; k++ )
+   {
+      if( area[k] < 0.01 )
+         continue;
+      glm::mat4 cur = M * cubetransforms[k] * eyeTrans;
+      glm::vec4 middle = glm::vec4( surfel.position.x, surfel.position.y, surfel.position.z, 1.0 );
+      glm::vec4 temp = cur * middle;
+      temp[0] /= temp[3];
+      temp[1] /= temp[3];
+      temp[2] /= temp[3];
+      temp[3] = 1;
+      if (temp[0] > 0 && temp[0] < NPIXELS && temp[1] > 0 && temp[1] < NPIXELS )
+      {
+         float length = sqrtf( area[k] );
+         glm::vec4 *points = getAxisAlinedPoints( surfel.position, length/2.0, k );
+         points[0] = cur * points[0];
+         points[1] = cur * points[1];
+         points[2] = cur * points[2];
+         points[3] = cur * points[3];
+         for( int i = 0; i < 4; i++ )
+         {
+            points[i][0] /= points[i][3];
+            points[i][1] /= points[i][3];
+            points[i][2] /= points[i][3];
+            points[i][3] = 1;
+         }
+         int minX = 0;
+         int minY = 0;
+         int maxX = 0;
+         int maxY = 0;
+         minX = points[0][0];
+         maxX = points[0][0];
+         minY = points[0][1];
+         maxY = points[0][1];
+         for( int i = 0; i < 4; i++ )
+         {
+            if( minX > points[i][0] )
+               minX = points[i][0];
+            if( minY > points[i][1] )
+               minY = points[i][1];
+            if( maxX < points[i][0] )
+               maxX = points[i][0];
+            if( maxY < points[i][1] )
+               maxY = points[i][1];
+         }
+         float dis = distance( position, surfel.position );
+         for( int i = minY; i < maxY; i++ )
+         {
+            for( int j = minX; j < maxX; j++ )
+            {
+               cube.sides[k][i][j] = surfel.color;
+               cube.depth[k][i][j] = dis;
+            }
+         }
+         delete []points;
+      }
+   }
 }
 void rayTraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position )
 {
@@ -629,8 +886,8 @@ void evaluateSphereicalHermonicsArea( TreeNode &node, vec3 &centerToEye )
    float sin_theta = sinf(theta);
    float cos_theta = cosf(theta);
    float cos_phi = cosf(phi);
-   float sin_phi = sinf(phi); 
-   float * TYlm = getYLM( sin_theta *cos_phi, sin_theta * sin_phi, cos_theta ); 
+   float sin_phi = sinf(phi);
+   float * TYlm = getYLM( sin_theta *cos_phi, sin_theta * sin_phi, cos_theta );
    float area = 0;
 
    for( int i =0; i < 9; i++ )
@@ -646,8 +903,8 @@ void evaluateSphereicalHermonicsPower( TreeNode &node, vec3 &centerToEye )
    float sin_theta = sinf(theta);
    float cos_theta = cosf(theta);
    float cos_phi = cosf(phi);
-   float sin_phi = sinf(phi); 
-   float * TYlm = getYLM( sin_theta *cos_phi, sin_theta * sin_phi, cos_theta ); 
+   float sin_phi = sinf(phi);
+   float * TYlm = getYLM( sin_theta *cos_phi, sin_theta * sin_phi, cos_theta );
    Color color;
    color.r = 0;
    color.g = 0;
@@ -661,74 +918,3 @@ void evaluateSphereicalHermonicsPower( TreeNode &node, vec3 &centerToEye )
    }
    return color;
 }
-
-/*
-   void rasterizeSurfelVaribleVectors( RasterCube &cube, Intersection &position, Surfel &surfel ) {
-//rasterizeSurfelToSide( SIDEOFCUBE, up vec, right vec, in vec, surfel )
-vec3 up = cube.up;
-vec3 in = cube.in;
-vec3 right = cube.right;
-vec3 down = neg(cube.up);
-vec3 left = neg(cube.right);
-vec3 out = neg(cube.in);
-rasterizeSurfelToSide( cube.topface, in, right, down, surfel );
-
-rasterizeSurfelToSide( cube.frontface, up, right, in,  surfel );
-rasterizeSurfelToSide( cube.backface, up, left, out, surfel);
-
-rasterizeSurfelToSide( cube.rightface, up, in, left, surfel);
-rasterizeSurfelToSide( cube.leftface, up, out, right, surfel);
-
-}
-void createCubeVectors( RasterCube &cube, Intersection &position )
-{
-cube.up = position.normal;
-//Find another vector for right
-//find 2 smallest components
-if(position.normal.x < position.normal.y)
-{
-if(position.normal.y < position.normal.z)
-{
-cube.right.x = position.hitMark.x + 1;
-cube.right.y = position.hitMark.y + 1;
-
-cube.right.z = (position.normal.x *(cube.right.x - position.hitMark.x) +
-position.normal.y *(cube.right.y - position.hitMark.y)) / position.normal.z
-+ position.hitMark.z;
-}
-else
-{
-cube.right.x = position.hitMark.x + 1;
-cube.right.z = position.hitMark.z + 1;
-
-cube.right.y = (position.normal.x *(cube.right.x - position.hitMark.x) +
-position.normal.z *(cube.right.z - position.hitMark.z)) / position.normal.y
-+ position.hitMark.y;
-}
-}
-else
-{
-if(position.normal.x < position.normal.z)
-{
-cube.right.x = position.hitMark.x + 1;
-cube.right.y = position.hitMark.y + 1;
-
-cube.right.z = (position.normal.x *(cube.right.x - position.hitMark.x) +
-position.normal.y *(cube.right.y - position.hitMark.y)) / position.normal.z
-+ position.hitMark.z;
-}
-else
-{
-cube.right.y = position.hitMark.y + 1;
-cube.right.z = position.hitMark.z + 1;
-
-cube.right.x = (position.normal.y *(cube.right.y - position.hitMark.y) +
-position.normal.z *(cube.right.z - position.hitMark.z)) / position.normal.x
-+ position.hitMark.x;
-}
-}
-cube.right = unit(cube.right);
-cube.in = cross( cube.up, cube.right );
-//Have camera vectors for sides of cubes.
-}
- */
