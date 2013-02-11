@@ -10,7 +10,14 @@
 
 #define PI 3.141592
 #define MAXDEPTH 15
-#define MAX_ANGLE 1.0
+#define MAX_ANGLE 0.01
+#define FAR_PLANE 100.0
+#define NEAR_PLANE .1
+#define RIGHT 1
+#define LEFT -1
+#define TOP 1
+#define BOTTOM -1
+#define NPIXELS 8
 
 int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
 {
@@ -100,8 +107,17 @@ void castRays( const SurfelArray &surfels, Ray *rays, int numRays, Color *buffer
       buffer[rays[i].i*width + rays[i].j] = raytrace( surfels, rays[i] );
    }
 }
-void initCuberays( vec3 ***cuberays )
+vec3 ***initCuberays( )
 {
+   vec3 ***cuberays = (vec3 ***)malloc( sizeof(vec3 **) * 6 );
+   for(int i = 0; i < 6; i++ )
+   {
+      cuberays[i] = (vec3 **)malloc( sizeof(vec3 *) * 8 );
+      for( int j = 0; j< 8; j++ )
+      {
+         cuberays[i][j] = (vec3 *)malloc( sizeof(vec3) * 8 );
+      }
+   }
    //cube size does not matter.
 
    //Front
@@ -142,6 +158,7 @@ void initCuberays( vec3 ***cuberays )
          cuberays[5][i][j] = unit(ray);
       }
    }
+   return cuberays;
 }
 void initCubeTransforms( glm::mat4 **cubetrans )
 {
@@ -194,9 +211,8 @@ void initCubeTransforms( glm::mat4 **cubetrans )
 }
 void castRays( const TreeNode &tree, Ray *rays, int numRays, Color *buffer, int width )
 {
-   vec3 cuberays[6][8][8];
    glm::mat4 *cubetrans;
-   initCuberays( (vec3***)cuberays );
+   vec3 ***cuberays = initCuberays();
    initCubeTransforms( &cubetrans );
    for( int i = 0; i < numRays; i++ )
    {
@@ -493,10 +509,25 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, gl
       hit.y = ray.pos.y + ray.dir.y * cur.t;
       hit.z = ray.pos.z + ray.dir.z * cur.t;
 
-      traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, cur.surfel.normal, cuberay, cubetrans );
-   }
-   //TODO:
+      traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, cur.surfel.normal, cuberay, cubetrans, 0 );
+      float dis = 0;
+      int num = 0;
+      for( int i = 0; i <6; i++)
+         for( int j = 0; j<8; j++)
+            for( int k =0; k<8;k++)
+               if( cube.depth[i][j][k] < FAR_PLANE && cube.depth[i][j][k] > 0 )
+               {
+                  num++;
+                  color.r += cube.sides[i][j][k].r;
+                  color.g += cube.sides[i][j][k].g;
+                  color.b += cube.sides[i][j][k].b;
+                  dis += cube.depth[i][j][k];
+               }
+      dis /= (float)num;
+      printf( "num: %d, %f %f %f, %f\n", num, color.r, color.g, color.b, dis );
       return color;
+   }
+   return color;
 }
 TreeHitMark transTree( TreeNode tree, const Ray &ray )
 {
@@ -606,7 +637,7 @@ Color raytrace( const struct ArrayNode *tree, int size, SurfelArray &SA, const R
 }
 
 void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
-      vec3 &position, vec3 normal, vec3 ***cuberays, glm::mat4 *cubetransforms )
+      vec3 &position, vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetransforms, int depth)
 {
    if( node.leaf == 1 )
    {
@@ -615,9 +646,14 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       {
          dis = distance( position, node.SA.array[i].pos );
          if ( dis < node.SA.array[i].radius )
+         {
             raytraceSurfelToCube( cube, node.SA.array[i], cuberays, position );
+         }
          else
-            rasterizeSufelToCube( cube, node.SA.array[i], cubetransforms );
+         {
+            raytraceSurfelToCube( cube, node.SA.array[i], cuberays, position );
+            //rasterizeSurfelToCube( cube, node.SA.array[i], cubetransforms, position );
+         }
       }
    }
    else
@@ -633,19 +669,25 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       vec3 centerToEye = newDirection( position,center );
       centerToEye = unit(centerToEye);
 
-      float distance = distance( center, position );
-      float area = evaluateSphericalHermonicsArea( node, eyeToNode );
-      float solidangle = area / (distance *distance);
+      float dis = distance( center, position );
+      float area = evaluateSphericalHermonicsArea( node, centerToEye );
+      float solidangle = area / (dis *dis);
       if( solidangle < maxangle && area > 0.01 )
       {
-         Color c = evaluateSphereicalHermonicsPower( );
-         rasterizeClusterToCube( cube, c, area, cubeTransforms )
+         Color c = evaluateSphericalHermonicsPower( node, centerToEye );
+         rasterizeClusterToCube( cube, c, area, getCenter(node.box), cubetransforms, position );
             //rasterize the cluster as a disk
       }
-      else
+      else if( area > 0.01 )
+      {
          for( int i = 0; i < 8; i++)
+         {
             if( node.children[i] != NULL )
-               traverseOctreeCPU( cube, node, maxangle, position );
+            {
+               traverseOctreeCPU( cube, *node.children[i], maxangle, position, normal, cuberays, cubetransforms, depth +1 );
+            }
+         }
+      }
    }
 }
 glm::vec4 *getWVecs( )
@@ -664,7 +706,7 @@ glm::vec4 *getWVecs( )
    //top w = -y, u = pos x, v = pos z
    ret[5] = glm::vec4( 0.0, -1.0, 0.0, 0.0 );
 }
-glm::vec4 *getAxisAlinedPoints( vec3 position, float len, int side )
+glm::vec4 *getAxisAlinedPoints( vec3 position, float len, int k )
 {
    glm::vec4 *ret = new glm::vec4[4];
    if( k == 0 || k == 2 ) // front and back: x,y pin z
@@ -705,7 +747,7 @@ glm::mat4 getOrthMatrix()
    ret[0] = glm::vec4( 2.0/(RIGHT - LEFT), 0, 0, -(RIGHT +LEFT)/(RIGHT -LEFT) );
    ret[1] = glm::vec4( 0, 2.0/(TOP-BOTTOM), 0, -(TOP + BOTTOM)/(TOP-BOTTOM) );
    ret[2] = glm::vec4( 0, 0, 2.0/(NEAR_PLANE - FAR_PLANE),
-         -(NEAR_PLANE + FAR_PLANE)/(NEAR_PLANE - FARPLANE) );
+         -(NEAR_PLANE + FAR_PLANE)/(NEAR_PLANE - FAR_PLANE) );
    ret[3] = glm::vec4( 0, 0, 0, 1.0 );
    return ret;
 }
@@ -736,8 +778,7 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
       temp[3] = 1;
       if (temp[0] > 0 && temp[0] < NPIXELS && temp[1] > 0 && temp[1] < NPIXELS )
       {
-         float length = sqrtf( area[k] );
-         glm::vec4 *points = getAxisAlinedPoints( surfel.position, length/2.0, k );
+         glm::vec4 *points = getAxisAlinedPoints( nodePosition, length/2.0, k );
          points[0] = cur * points[0];
          points[1] = cur * points[1];
          points[2] = cur * points[2];
@@ -768,12 +809,12 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
             if( maxY < points[i][1] )
                maxY = points[i][1];
          }
-         float dis = distance( position, surfel.position );
+         float dis = distance( position, nodePosition );
          for( int i = minY; i < maxY; i++ )
          {
             for( int j = minX; j < maxX; j++ )
             {
-               cube.sides[k][i][j] = surfel.color;
+               cube.sides[k][i][j] = c;
                cube.depth[k][i][j] = dis;
             }
          }
@@ -787,9 +828,14 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
    const static glm::mat4 M = getViewPixelMatrix() * getOrthMatrix() * getProjectMatrix();
    const static glm::vec4 *wVecs = getWVecs();
    //get projected area for each side
+   float area = surfel.radius *surfel.radius * PI;
    float areas[6];
+   glm::vec3 normal = glm::vec3( surfel.normal.x, surfel.normal.y, surfel.normal.z );
    for( int i =0; i < 6; i++ )
-      areas[i] = glm::dot( wVecs[i], surfel.normal ) * area;
+   {
+      glm::vec3 t = glm::vec3(wVecs[i][0], wVecs[i][1], wVecs[i][2]);
+      areas[i] = glm::dot( t, normal ) * area;
+   }
 
    glm::mat4 eyeTrans = glm::mat4(1.0);
    eyeTrans[0][3] = -position.x;
@@ -799,10 +845,10 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
    //For each face
    for( int k = 0; k< 6; k++ )
    {
-      if( area[k] < 0.01 )
+      if( areas[k] < 0.01 )
          continue;
       glm::mat4 cur = M * cubetransforms[k] * eyeTrans;
-      glm::vec4 middle = glm::vec4( surfel.position.x, surfel.position.y, surfel.position.z, 1.0 );
+      glm::vec4 middle = glm::vec4( surfel.pos.x, surfel.pos.y, surfel.pos.z, 1.0 );
       glm::vec4 temp = cur * middle;
       temp[0] /= temp[3];
       temp[1] /= temp[3];
@@ -810,8 +856,8 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
       temp[3] = 1;
       if (temp[0] > 0 && temp[0] < NPIXELS && temp[1] > 0 && temp[1] < NPIXELS )
       {
-         float length = sqrtf( area[k] );
-         glm::vec4 *points = getAxisAlinedPoints( surfel.position, length/2.0, k );
+         float length = sqrtf( areas[k] );
+         glm::vec4 *points = getAxisAlinedPoints( surfel.pos, length/2.0, k );
          points[0] = cur * points[0];
          points[1] = cur * points[1];
          points[2] = cur * points[2];
@@ -842,20 +888,21 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
             if( maxY < points[i][1] )
                maxY = points[i][1];
          }
-         float dis = distance( position, surfel.position );
+         float dis = distance( position, surfel.pos );
          for( int i = minY; i < maxY; i++ )
          {
             for( int j = minX; j < maxX; j++ )
             {
                cube.sides[k][i][j] = surfel.color;
                cube.depth[k][i][j] = dis;
+               printf("RASTERIZED TO CUBE %f %f %f", surfel.color.r, surfel.color.g, surfel.color.b);
             }
          }
          delete []points;
       }
    }
 }
-void rayTraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position )
+void raytraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position )
 {
    for( int i = 0; i < 6; i++ )
    {
@@ -873,16 +920,17 @@ void rayTraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, v
                {
                   cube.depth[i][j][k] = t;
                   cube.sides[i][j][k] = surfel.color;
+                  printf( "HIT %f\n", t );
                }
             }
          }
       }
    }
 }
-void evaluateSphereicalHermonicsArea( TreeNode &node, vec3 &centerToEye )
+float evaluateSphericalHermonicsArea( const TreeNode &node, vec3 &centerToEye )
 {
-   theta = acosf( centerToEye.z );
-   phi = atanf( centerToEye.y / centerToEye.x );
+   float theta = acosf( centerToEye.z );
+   float phi = atanf( centerToEye.y / centerToEye.x );
    float sin_theta = sinf(theta);
    float cos_theta = cosf(theta);
    float cos_phi = cosf(phi);
@@ -896,10 +944,10 @@ void evaluateSphereicalHermonicsArea( TreeNode &node, vec3 &centerToEye )
    }
    return area;
 }
-void evaluateSphereicalHermonicsPower( TreeNode &node, vec3 &centerToEye )
+Color evaluateSphericalHermonicsPower( const TreeNode &node, vec3 &centerToEye )
 {
-   theta = acosf( centerToEye.z );
-   phi = atanf( centerToEye.y / centerToEye.x );
+   float theta = acosf( centerToEye.z );
+   float phi = atanf( centerToEye.y / centerToEye.x );
    float sin_theta = sinf(theta);
    float cos_theta = cosf(theta);
    float cos_phi = cosf(phi);

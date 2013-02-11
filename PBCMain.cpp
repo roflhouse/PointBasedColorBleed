@@ -61,6 +61,8 @@ int main(int argc, char *argv[])
    //Scene s2 = createSurfelSpheres( scene, rays, number );
    //castRaysCuda( surfels, size, SA, rays, number, buffer, width_of_image, height_of_image );
    //castRays( surfels, size, SA, rays, number, buffer, width_of_image );
+   castRays( surfels, rays, number, buffer, width_of_image );
+
    free( scene.spheres );
    free( scene.planes );
    free( scene.triangles );
@@ -68,7 +70,6 @@ int main(int argc, char *argv[])
    //free( surfels );
    free( rays );
    freeSurfelArray( SA );
-   castRays( surfels, rays, number, buffer, width_of_image );
    //castRaysSphere( s2, rays, number, buffer, width_of_image );
    //castRays( scene, rays, number, buffer, width_of_image );
 

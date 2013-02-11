@@ -10,6 +10,7 @@
 #include "Octree.h"
 #define PI 3.14159265359
 #define MONTE_CARLO_N 128
+#define MAX_DEPTH  20
 
 int glob;
 int count( TreeNode *root );
