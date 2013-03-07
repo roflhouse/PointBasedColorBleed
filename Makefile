@@ -7,12 +7,18 @@ CFLAGS=  -g -c
 CFLAGSCUDA= -g -c  -arch=sm_21 
 LDFLAGS= -g 
 
-ALL= PBCMain.o Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o Util/CudaRay.o 
+ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o Util/CudaRay.o 
 
 all:	$(ALL) PBC 
 
-PBC:	$(ALL)
-	$(CC) $(LDFLAGS) $(ALL) -o PBC 
+PBC:	$(ALL) PBCMain.o
+	$(CC) $(LDFLAGS) PBCMain.o $(ALL) -o PBC 
+
+PBCTest: $(ALL) test.o
+	$(CC) $(LDFLAGS) test.o $(ALL) -o PBCTest 
+   
+test.o:	test.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Color.o Util/Ray.o Util/CudaRay.o 
+	$(CC) $(CFLAGS) -o $@ $<
 
 PBCMain.o:	PBCMain.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Color.o Util/Ray.o Util/CudaRay.o 
 	$(CC) $(CFLAGS) -o $@ $<

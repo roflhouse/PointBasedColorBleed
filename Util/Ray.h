@@ -48,12 +48,18 @@ Color raytrace( const struct ArrayNode *Tree, int size, SurfelArray &SA, const R
 struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int numRays, int &size );
 
 void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle, vec3 &position,
-      vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetrans, int depth);
+      vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetrans);
 void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePosition,
-      glm::mat4 *cubetransforms, vec3 &position);
+      glm::mat4 *cubetransforms, vec3 ***cuberays, vec3 &position, vec3 &normal);
 void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetransforms,
-      vec3 &position );
-void raytraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position );
+      vec3 ***cuberays, vec3 &position, vec3 &normal );
+void raytraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position,
+      vec3 &normal );
 float evaluateSphericalHermonicsArea( const TreeNode &node, vec3 &centerToEye );
 Color evaluateSphericalHermonicsPower(const TreeNode &node, vec3 &centerToEye);
+vec3 ***initCuberays( );
+void initCubeTransforms( glm::mat4 **cubetrans );
+glm::mat4 getViewPixelMatrix();
+glm::mat4 getOrthMatrix();
+glm::mat4 getProjectMatrix();
 #endif

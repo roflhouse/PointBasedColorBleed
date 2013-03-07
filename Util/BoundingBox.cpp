@@ -31,11 +31,11 @@ BoundingBox createBoundingBox( const vec3 &min, const vec3 &max )
 }
 bool isIn( const BoundingBox &box, const vec3 &pos )
 {
-   if (pos.x > box.max.x || pos.x < box.min.x )
+   if (pos.x >= box.max.x || pos.x < box.min.x )
       return false;
-   if (pos.y > box.max.y || pos.y < box.min.y )
+   if (pos.y >= box.max.y || pos.y < box.min.y )
       return false;
-   if (pos.z > box.max.z || pos.z < box.min.z )
+   if (pos.z >= box.max.z || pos.z < box.min.z )
       return false;
    return true;
 }
@@ -169,15 +169,32 @@ BoundingBox *getSubBoxes( const BoundingBox &box )
 }
 bool belowHorizon( const BoundingBox &box, vec3 &position, vec3 &normal )
 {
-   //min - pos
-   vec3 point = newDirection( box.min, position );
-   if (dot( normal, point ) > 0) 
-      return false;
+   //eight points off cube
+   vec3 points[8];
+   points[0] = box.min;
+   points[1] = box.min;
+   points[1].z = box.max.z;
+   points[2] = box.min;
+   points[2].y = box.max.y;
+   points[3] = box.min;
+   points[3].y = box.max.y;
+   points[3].z = box.max.z;
+   points[4] = box.min;
+   points[4].x = box.max.x;
+   points[5] = box.min;
+   points[5].x = box.max.x;
+   points[5].z = box.max.z;
+   points[6] = box.min;
+   points[6].x = box.max.x;
+   points[6].y = box.max.y;
+   points[7] = box.max;
+   for( int i = 0; i < 8; i++ )
+   {
+      vec3 temp = unit( newDirection( points[i], position ) );
+      if( dot( normal, temp ) > 0 )
+         return false;
+   }
 
-   //max - pos
-   point = newDirection( box.min, position );
-   if (dot(normal, point ) > 0) 
-      return false;
    return true;
 }
 vec3 getCenter( const BoundingBox &box )

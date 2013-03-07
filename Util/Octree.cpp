@@ -19,6 +19,12 @@ TreeNode createOctree( SurfelArray &SA, vec3 min, vec3 max )
 {
    TreeNode *root = (TreeNode *) malloc( sizeof(TreeNode) );
 
+   min.x -= .0001;
+   min.y -= .0001;
+   min.z -= .0001;
+   max.x += 0.0001;
+   max.y += 0.0001;
+   max.z += 0.0001;
    root->box = createBoundingBox( min, max );
    root->SA = SA;
    printf("first %d\n", SA.num );
@@ -152,6 +158,7 @@ int buildOctreeArray( TreeNode *tree, ArrayNode *octree, int &cur, SurfelArray &
 }
 TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth )
 {
+   static int p = 0;
    TreeNode *ret = (TreeNode *) malloc ( sizeof( TreeNode ) );
    ret->hermonics = createHermonics();
    ret->box = box;
@@ -172,7 +179,10 @@ TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth )
       free( boxes );
    }
    else
+   {
       ret->leaf = true;
+      p += ret->SA.num;
+   }
 
    return ret;
 }
@@ -288,6 +298,8 @@ void averageHermonics( Hermonics &save, float factor )
 
 void filloutHermonics( TreeNode *root )
 {
+   static int s = 0;
+   static int in = 0;
    if( root->leaf )
    {
       if( root->SA.num > 0 )
@@ -299,9 +311,13 @@ void filloutHermonics( TreeNode *root )
          Hermonics temp = calculateSphericalHermonics( root->SA.array[0] );
          addHermonics( root->hermonics, temp );
       }
+      s += root->SA.num;
+      //printf("Leaf done %d\n", s);
    }
    else
    {
+      in++;
+      //printf("Doing children %d\n", in);
       for( int j = 0; j < 8; j++ )
       {
          filloutHermonics( root->children[j] );

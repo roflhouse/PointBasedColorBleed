@@ -15,17 +15,14 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
    vec3 position;
    vec3 normal = unit(surfel.normal);
 
-   direction.x = direction.x;
-   direction.y = direction.y;
-   direction.z = direction.z;
    position.x = ray.pos.x;
    position.y = ray.pos.y;
    position.z = ray.pos.z;
 
    float vd = dot(normal, direction);
-   if( vd < 0.001 && vd > -0.001 )
+   if( vd > 0.001 )// && vd > -0.001 )
       return -1;
-   float v0 = -(dot(position, normal) - surfel.distance );
+   float v0 = -(dot(position, normal) + surfel.distance );
    float t = v0/vd;
    if( t < 0.01)
       return -1;
