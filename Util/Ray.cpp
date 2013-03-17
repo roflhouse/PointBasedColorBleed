@@ -10,6 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <stdio.h>
 #include "Tga.h"
 
 #define PI 3.141592
@@ -601,7 +602,10 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, gl
       dis /= num;
 
       if( num > 0 && !(it % 10)  )
-         printf( "num: %d, %d, %f %f %f, %f\n", it, num, color.r, color.g, color.b, dis );
+      {
+         printf( "num: %d         \r", it );
+         fflush(stdout);
+      }
 
       if( color.r > 1 )
          color.r = 1;
@@ -609,6 +613,13 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, gl
          color.g = 1;
       if( color.b > 1 )
          color.b = 1;
+      color.r *= cur.surfel.info.finish_diffuse;
+      color.g *= cur.surfel.info.finish_diffuse;
+      color.b *= cur.surfel.info.finish_diffuse;
+      color.r += cur.color.r;
+      color.g += cur.color.g;
+      color.b += cur.color.b;
+      
       return color;
    }
    return color;
@@ -729,7 +740,7 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
          dis = distance( position, node.SA.array[i].pos );
          if ( dis < node.SA.array[i].radius )
          {
-            //raytraceSurfelToCube( cube, node.SA.array[i], cuberays, position, normal );
+            raytraceSurfelToCube( cube, node.SA.array[i], cuberays, position, normal );
             //rasterizeSurfelToCube( cube, node.SA.array[i], cubetransforms, cuberays,
             //      position, normal );
          }
@@ -747,7 +758,7 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
          return;
 
 
-      for( int i = 0; i < 8; i++)
+      /*for( int i = 0; i < 8; i++)
       {
          if( node.children[i] != NULL )
          {
@@ -755,6 +766,7 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
          }
       }
       return;
+      */
 
       vec3 center;
       center = newDirection(node.box.max, node.box.min);
@@ -767,10 +779,12 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
 
       float dis = distance( center, position );
       float area = evaluateSphericalHermonicsArea( node, centerToEye );
+      printf("area: %f\n", area);
       float solidangle = area / (dis *dis);
       if( solidangle < maxangle )
       {
          Color c = evaluateSphericalHermonicsPower( node, centerToEye );
+         printf("Cluster %f, %f, %f\n", solidangle, area, dis);
          rasterizeClusterToCube( cube, c, area, getCenter(node.box), cubetransforms,
                cuberays, position, normal );
          //rasterize the cluster as a disk
@@ -928,7 +942,7 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
                   float d = dot( cuberays[k][i][j], normal );
                   if (d < 0.01 )// || cube.depth[k][i][j] < 0)
                      continue;
-                  float atten = 1/ (1 +2*dis+ 3*dis * dis);
+                  float atten = area/ (3 +dis+ 2*dis * dis);
                   if( atten > 1 )
                      atten = 1;
                   cube.sides[k][i][j].r = c.r*d *atten;
@@ -1052,7 +1066,7 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
                   float d = dot( cuberays[k][j][i], normal );
                   if (d < 0.001 || cube.depth[k][j][i] < 0)
                      continue;
-                  float atten = 1/ (1 +8*dis * dis);
+                  float atten = areas[k]/ (dis * dis);
                   if( atten > 1 )
                      atten = 1;
                   cube.sides[k][i][j].r = surfel.color.r*d *atten;
@@ -1114,6 +1128,7 @@ float evaluateSphericalHermonicsArea( const TreeNode &node, vec3 &centerToEye )
 {
    float theta = acosf( centerToEye.z );
    float phi = atanf( centerToEye.y / centerToEye.x );
+   printf("theta: %f %f\n", theta, phi);
    float sin_theta = sinf(theta);
    float cos_theta = cosf(theta);
    float cos_phi = cosf(phi);

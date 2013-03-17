@@ -80,6 +80,7 @@ Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
    surfel.normal = normal;
    surfel.color = directIllumination( inter, scene );
    surfel.radius = .01;
+   surfel.info = inter.colorInfo;
    return surfel;
 }
 Sphere intersectionToSphere( const Intersection &inter, const Scene &scene )

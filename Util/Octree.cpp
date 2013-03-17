@@ -9,7 +9,7 @@
 
 #include "Octree.h"
 #define PI 3.14159265359
-#define MONTE_CARLO_N 128
+#define MONTE_CARLO_N 512
 #define MAX_DEPTH  20
 
 int glob;
@@ -186,6 +186,55 @@ TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth )
 
    return ret;
 }
+/*int factorial( int x)
+  {
+  int ret = 1;
+  for( int i = 1; i <= x; i++ )
+  ret *= i;
+  return ret;
+  }
+  double K(int l, int m)
+  {
+// renormalisation constant for SH function
+double temp = ((2.0*l+1.0)*factorial(l-m)) / (4.0*PI*factorial(l+m));
+return sqrt(temp);
+}
+double P(int l,int m,double x)
+{
+// evaluate an Associated Legendre Polynomial P(l,m,x) at x
+double pmm = 1.0;
+if(m>0) {
+double somx2 = sqrt((1.0-x)*(1.0+x));
+double fact = 1.0;
+for(int i=1; i<=m; i++) {
+pmm *= (-fact) * somx2;
+fact += 2.0;
+}
+}
+if(l==m) return pmm;
+double pmmp1 = x * (2.0*m+1.0) * pmm;
+if(l==m+1) return pmmp1;
+double pll = 0.0;
+for(int ll=m+2; ll<=l; ++ll) {
+pll = ( (2.0*ll-1.0)*x*pmmp1-(ll+m-1.0)*pmm ) / (ll-m);
+pmm = pmmp1;
+pmmp1 = pll;
+}
+return pll;
+}
+double SH(int l, int m, double theta, double phi)
+{
+// return a point sample of a Spherical Harmonic basis function
+// l is the band, range [0..N]
+// m in the range [-l..l]
+// theta in the range [0..Pi]
+// phi in the range [0..2*Pi]
+const double sqrt2 = sqrt(2.0);
+if(m==0) return K(l,0)*P(l,m,cos(theta));
+else if(m>0) return sqrt2*K(l,m)*cos(m*phi)*P(l,m,cos(theta));
+else return sqrt2*K(l,-m)*sin(-m*phi)*P(l,-m,cos(theta));
+}
+ */
 Hermonics calculateSphericalHermonics( struct Surfel &surfel )
 {
    Hermonics sh;
@@ -203,64 +252,82 @@ Hermonics calculateSphericalHermonics( struct Surfel &surfel )
    float simple_spacing = 1.0 / MONTE_CARLO_N;
 
    //Sum
-   for( int j = 0; j < MONTE_CARLO_N-1; j++ )
+   for( int j = 0; j < MONTE_CARLO_N; j++ )
    {
-      float phi_j = j * simple_spacing;
-      //Random Float 0->1
-      float r = (float)rand() / (float)RAND_MAX;
-      phi_j +=  r * simple_spacing;
-      float phi = 2.0 * PI * phi_j;
-      for( int i = 0; i < MONTE_CARLO_N-1; i++ )
+      for( int i = 0; i < MONTE_CARLO_N; i++ )
       {
-         float theta_i = i * simple_spacing;
+         float r = (float)rand() / (float)RAND_MAX;
+         float x = (j + r) / MONTE_CARLO_N;
          r = (float)rand() / (float)RAND_MAX;
-         theta_i += r * simple_spacing;
+         float y = (i + r) / MONTE_CARLO_N;
 
-         float theta = 2 * acosf( sqrt( 1 - theta_i ) );
+         float phi = 2.0 * PI * y;
+         float theta = 2 * acosf( sqrt( 1.0 - x ) );
 
          float sin_theta = sinf(theta);
          float cos_theta = cosf(theta);
          float sin_phi = sinf(phi);
          float cos_phi = cosf(phi);
-         vec3 d = {sin_theta * cos_phi, sin_theta * sin_phi, cos_theta };
+         vec3 d;
+         d.x = sin_theta*cos_phi;
+         d.z = sin_theta*sin_phi;
+         d.y = cos_theta;
+
          float d_dot_n = dot( d, surfel.normal );
 
          float *TYlm = getYLM( sin_theta * cos_phi, sin_theta* sin_phi, cos_theta );
 
-         for( int i = 0; i < 9; i++ )
+         //now > 0
+         if(d_dot_n > 0)
          {
-            //Red
-            sh.red[i] += surfel.color.r * area * d_dot_n + TYlm[i] * sin_theta;
-            //Green
-            sh.green[i] += surfel.color.g * area * d_dot_n + TYlm[i] * sin_theta;
-            //Blue
-            sh.blue[i] += surfel.color.b * area * d_dot_n + TYlm[i] * sin_theta;
-            //area
-            sh.area[i] += area* d_dot_n + TYlm[i] *sin_theta;
+            for( int k = 0; k < 9; k++ )
+            {
+               //Red
+               sh.red[k] += surfel.color.r * area * d_dot_n + TYlm[k] * sin_theta;
+               //Green
+               sh.green[k] += surfel.color.g * area * d_dot_n + TYlm[k] * sin_theta;
+               //Blue
+               sh.blue[k] += surfel.color.b * area * d_dot_n + TYlm[k] * sin_theta;
+               //area
+               sh.area[k] += (10 * d_dot_n * TYlm[k]);// * (4*PI/(MONTE_CARLO_N*MONTE_CARLO_N));
+               //sh.area[k] += d_dot_n * TYlm[k] * area * sin_theta/(512*512);
+               //printf("c: %f\n", sh.area[k]);
+            }
+            /*for(int l=0; l<3; ++l) {
+              for(int m=-l; m<=l; ++m) {
+              int index = l*(l+1)+m;
+              sh.area[index] += (SH(l,m, theta, phi) * sin_theta * area * d_dot_n)*
+              (4*PI/(MONTE_CARLO_N*MONTE_CARLO_N));
+              if( fabs(SH(l,m,theta,phi) - TYlm[index]) >0.00001  )
+              printf("%f %f\n", SH(l,m,theta,phi), TYlm[index] );
+              }
+              }
+             */
          }
          free( TYlm );
       }
    }
 
    //Average
-   averageHermonics( sh, ((4*PI)/(float)MONTE_CARLO_N));
+   averageHermonics( sh, ((4*PI)/((float)MONTE_CARLO_N*(float)MONTE_CARLO_N)));
    return sh;
 }
+
 float *getYLM( float x, float y, float z )
 {
    const static float Ylm[9] = { 0.282095, .488603,.488603,.488603,
       1.092548, 1.092548, 1.092548, 0.315392, .546274 };
 
    float *ret = (float *)malloc( sizeof(float) * 9 );
-   ret[0] = Ylm[0];
-   ret[1] = Ylm[1] * x;
-   ret[2] = Ylm[2] * z;
-   ret[3] = Ylm[3] * y;
-   ret[4] = Ylm[4] * x * z;
-   ret[5] = Ylm[5] * y * z;
-   ret[6] = Ylm[6] * x * y;
-   ret[7] = Ylm[7] * (3*z*z - 1);
-   ret[8] = Ylm[8] * (x*x - y*y);
+   ret[0] = Ylm[0]; //0 0
+   ret[1] = Ylm[3] * -y;//1 -1
+   ret[2] = Ylm[2] * z;//1 0
+   ret[3] = Ylm[1] * -x; //1 1
+   ret[4] = Ylm[6] * x * y; // 2 -2
+   ret[5] = Ylm[5] * -y * z; //2 -1
+   ret[6] = Ylm[7] * (3*z*z - 1); //2 0
+   ret[7] = Ylm[4] * -x * z; //2 1
+   ret[8] = Ylm[8] * (x*x - y*y); //2 2
    return ret;
 }
 Hermonics createHermonics()
@@ -289,10 +356,10 @@ void averageHermonics( Hermonics &save, float factor )
 {
    for( int j = 0; j < 9; j++ )
    {
-      save.red[j] += factor;
-      save.green[j] += factor;
-      save.blue[j] += factor;
-      save.area[j] += factor;
+      save.red[j] *= factor;
+      save.green[j] *= factor;
+      save.blue[j] *= factor;
+      save.area[j] *= factor;
    }
 }
 

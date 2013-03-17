@@ -56,5 +56,6 @@ void filloutHermonics( TreeNode *root );
 Hermonics createHermonics();
 void addHermonics( Hermonics &save, Hermonics &gone );
 void averageHermonics( Hermonics &save, float factor );
+double SH(int l, int m, double theta, double phi);
 
 #endif

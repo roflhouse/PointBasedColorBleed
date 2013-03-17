@@ -10,12 +10,14 @@
 #ifndef SURFELTYPE_H
 #define SURFELTYPE_H
 #include "../Util/Color.h"
+#include "ObjectInfo.h"
 typedef struct Surfel {
    vec3 pos;
    vec3 normal;
    float distance;
    Color color;
    float radius;
+   ColorInfo info;
 } Surfel;
 
 typedef struct SurfelArray {
