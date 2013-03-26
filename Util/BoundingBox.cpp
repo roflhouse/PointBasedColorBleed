@@ -167,7 +167,7 @@ BoundingBox *getSubBoxes( const BoundingBox &box )
 
    return boxes;
 }
-bool belowHorizon( const BoundingBox &box, vec3 &position, vec3 &normal )
+int belowHorizon( const BoundingBox &box, vec3 &position, vec3 &normal )
 {
    //eight points off cube
    vec3 points[8];
@@ -188,14 +188,14 @@ bool belowHorizon( const BoundingBox &box, vec3 &position, vec3 &normal )
    points[6].x = box.max.x;
    points[6].y = box.max.y;
    points[7] = box.max;
+   int below = 0;
    for( int i = 0; i < 8; i++ )
    {
       vec3 temp = unit( newDirection( points[i], position ) );
-      if( dot( normal, temp ) > 0 )
-         return false;
+      if( dot( normal, temp ) <= 0 )
+         below++;
    }
-
-   return true;
+   return below;
 }
 vec3 getCenter( const BoundingBox &box )
 {
@@ -204,4 +204,15 @@ vec3 getCenter( const BoundingBox &box )
    c.y = (box.max.y -box.min.y)/2 + box.min.y;
    c.x = (box.max.z -box.min.z)/2 + box.min.z;
    return c;
+}
+float distanceToBox( const BoundingBox &box, vec3 &pos )
+{
+   vec3 close;
+   close.x = fmin( pos.x, box.max.x );
+   close.y = fmin( pos.y, box.max.y );
+   close.z = fmin( pos.z, box.max.z );
+   close.x = fmax( close.x, box.min.x );
+   close.y = fmax( close.y, box.min.y );
+   close.z = fmax( close.z, box.min.z );
+   return distance( close, pos );
 }

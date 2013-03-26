@@ -575,51 +575,55 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, gl
       hit.z = ray.pos.z + ray.dir.z * cur.t;
 
       traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, cur.surfel.normal, cuberay, cubetrans );
-      float dis = 0;
       int num = 0;
       color.r = 0;
       color.g = 0;
       color.b = 0;
-      float mind = 100;
       for( int i = 0; i <6; i++)
          for( int j = 0; j<8; j++)
             for( int k =0; k<8;k++)
             {
-               if( cube.depth[i][j][k] < -FAR_PLANE +1 && cube.depth[i][j][k] > -0.0001 )
+               if( cube.depth[i][j][k] < 0 )
+                  continue;
+               num++;
+               if( cube.depth[i][j][k] < -FAR_PLANE +1 )
                {
-                  num++;
+                  float dotProd = dot( unit( cuberay[i][j][k] ), unit(cur.surfel.normal) );
                   if(cube.sides[i][j][k].r > 0 )
-                     color.r += cube.sides[i][j][k].r;
+                     color.r += cube.sides[i][j][k].r * dotProd;
                   if(cube.sides[i][j][k].g > 0 )
-                     color.g += cube.sides[i][j][k].g;
+                     color.g += cube.sides[i][j][k].g * dotProd;
                   if(cube.sides[i][j][k].b > 0 )
-                     color.b += cube.sides[i][j][k].b;
-                  dis += cube.depth[i][j][k];
-                  if (mind > cube.depth[i][j][k])
-                     mind = cube.depth[i][j][k];
+                     color.b += cube.sides[i][j][k].b*dotProd;
                }
             }
-      dis /= num;
 
+      if( num > 0 )
+      {
+         color.r /= (float)num;
+         color.g /= (float)num;
+         color.b /= (float)num;
+      }
       if( num > 0 && !(it % 10)  )
       {
          printf( "num: %d         \r", it );
          fflush(stdout);
       }
 
-      if( color.r > 1 )
-         color.r = 1;
-      if( color.g > 1 )
-         color.g = 1;
-      if( color.b > 1 )
-         color.b = 1;
-      color.r *= cur.surfel.info.finish_diffuse;
-      color.g *= cur.surfel.info.finish_diffuse;
-      color.b *= cur.surfel.info.finish_diffuse;
+      /*color.r *= cur.surfel.info.finish_diffuse;
+        color.g *= cur.surfel.info.finish_diffuse;
+        color.b *= cur.surfel.info.finish_diffuse;
+       */
       color.r += cur.color.r;
       color.g += cur.color.g;
       color.b += cur.color.b;
-      
+      color.r = fmin( color.r, 1.0 );
+      color.r = fmax( color.r, 0.0 );
+      color.g = fmin( color.g, 1.0 );
+      color.g = fmax( color.g, 0.0 );
+      color.b = fmin( color.b, 1.0 );
+      color.b = fmax( color.b, 0.0 );
+
       return color;
    }
    return color;
@@ -728,7 +732,6 @@ Color raytrace( const struct ArrayNode *tree, int size, SurfelArray &SA, const R
 
    return color;
 }
-
 void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       vec3 &position, vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetransforms)
 {
@@ -741,11 +744,11 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
          if ( dis < node.SA.array[i].radius )
          {
             raytraceSurfelToCube( cube, node.SA.array[i], cuberays, position, normal );
-            //rasterizeSurfelToCube( cube, node.SA.array[i], cubetransforms, cuberays,
-            //      position, normal );
+            //printf("RAY\n");
          }
          else
          {
+            //printf("SINGLE\n");
             //raytraceSurfelToCube( cube, node.SA.array[i], cuberays, position, normal );
             rasterizeSurfelToCube( cube, node.SA.array[i], cubetransforms, cuberays,
                   position, normal );
@@ -754,20 +757,23 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
    }
    else
    {
-      if( belowHorizon( node.box, position, normal ) )
+      int horizon = belowHorizon( node.box, position, normal );
+      //if whole box is below skip
+      if( horizon == 8 )
          return;
-
-
-      /*for( int i = 0; i < 8; i++)
+      //if some of box is below go finer
+      else if ( horizon )
       {
-         if( node.children[i] != NULL )
+         for( int i = 0; i < 8; i++)
          {
-            traverseOctreeCPU( cube, *node.children[i], maxangle, position, normal, cuberays, cubetransforms );
+            if( node.children[i] != NULL )
+            {
+               traverseOctreeCPU( cube, *node.children[i], maxangle, position, normal, cuberays, cubetransforms );
+            }
          }
+         return;
       }
-      return;
-      */
-
+      //Whole box is above horizon so go
       vec3 center;
       center = newDirection(node.box.max, node.box.min);
       center.x /= 2;
@@ -777,14 +783,14 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       vec3 centerToEye = newDirection( position,center );
       centerToEye = unit(centerToEye);
 
-      float dis = distance( center, position );
+      float dis = distanceToBox( node.box, position );
       float area = evaluateSphericalHermonicsArea( node, centerToEye );
-      printf("area: %f\n", area);
+      //printf("area: %f\n", area);
       float solidangle = area / (dis *dis);
       if( solidangle < maxangle )
       {
          Color c = evaluateSphericalHermonicsPower( node, centerToEye );
-         printf("Cluster %f, %f, %f\n", solidangle, area, dis);
+         //printf("Cluster %f, %f, %f\n", solidangle, area, dis);
          rasterizeClusterToCube( cube, c, area, getCenter(node.box), cubetransforms,
                cuberays, position, normal );
          //rasterize the cluster as a disk
@@ -876,6 +882,10 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
       glm::mat4 *cubetransforms, vec3 ***cuberays, vec3 &position, vec3 &normal)
 {
    const static glm::mat4 M = getViewPixelMatrix() * getOrthMatrix() * getProjectMatrix();
+   vec3 check = newDirection( nodePosition, position );
+   check = unit(check);
+   if( dot(check, normal) >= 0.00001 )
+      return;
    glm::mat4 eyeTrans = glm::mat4(1.0);
    eyeTrans[0][3] = -position.x;
    eyeTrans[1][3] = -position.y;
@@ -884,79 +894,64 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
    for( int k = 0; k< 6; k++ )
    {
       glm::mat4 cur = M * cubetransforms[k] * eyeTrans;
-      glm::vec4 middle = glm::vec4( nodePosition.x, nodePosition.y, nodePosition.z, 1.0 );
-      glm::vec4 temp = cur * middle;
-      temp[0] /= temp[3];
-      temp[1] /= temp[3];
-      temp[2] /= temp[3];
-      temp[3] = 1;
-      if (temp[0] > -0.0001 && temp[0] < NPIXELS+0.001 && temp[1] > -0.001 && temp[1] < NPIXELS+.001 )
+      glm::vec4 *points = getAxisAlinedPoints( nodePosition, length/2.0, k );
+      points[0] = cur * points[0];
+      points[1] = cur * points[1];
+      points[2] = cur * points[2];
+      points[3] = cur * points[3];
+      for( int i = 0; i < 4; i++ )
       {
-         glm::vec4 *points = getAxisAlinedPoints( nodePosition, length/2.0, k );
-         points[0] = cur * points[0];
-         points[1] = cur * points[1];
-         points[2] = cur * points[2];
-         points[3] = cur * points[3];
-         for( int i = 0; i < 4; i++ )
-         {
-            points[i][0] /= points[i][3];
-            points[i][1] /= points[i][3];
-            points[i][2] /= points[i][3];
-            points[i][3] = 1;
-         }
-         int minX = 0;
-         int minY = 0;
-         int maxX = 0;
-         int maxY = 0;
-         minX = points[0][0];
-         maxX = points[0][0];
-         minY = points[0][1];
-         maxY = points[0][1];
-         for( int i = 0; i < 4; i++ )
-         {
-            if( minX > points[i][0] )
-               minX = roundf(points[i][0]);
-            if( minY > points[i][1] )
-               minY = roundf(points[i][1]);
-            if( maxX < points[i][0] )
-               maxX = roundf(points[i][0]);
-            if( maxY < points[i][1] )
-               maxY = roundf(points[i][1]);
-         }
-         if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
-         {
-            if( minX < 0 )
-               minX = 0;
-            if( minY < 0 )
-               minY = 0;
-            if( maxX > 7 )
-               maxX = 7;
-            if( maxY > 7 )
-               maxY = 7;
+         points[i][0] /= points[i][3];
+         points[i][1] /= points[i][3];
+         points[i][2] /= points[i][3];
+         points[i][3] = 1;
+      }
+      int minX = 0;
+      int minY = 0;
+      int maxX = 0;
+      int maxY = 0;
+      minX = points[0][0];
+      maxX = points[0][0];
+      minY = points[0][1];
+      maxY = points[0][1];
+      for( int i = 0; i < 4; i++ )
+      {
+         if( minX > points[i][0] )
+            minX = roundf(points[i][0]);
+         if( minY > points[i][1] )
+            minY = roundf(points[i][1]);
+         if( maxX < points[i][0] )
+            maxX = roundf(points[i][0]);
+         if( maxY < points[i][1] )
+            maxY = roundf(points[i][1]);
+      }
+      if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
+      {
+         if( minX < 0 )
+            minX = 0;
+         if( minY < 0 )
+            minY = 0;
+         if( maxX > 7 )
+            maxX = 7;
+         if( maxY > 7 )
+            maxY = 7;
 
-            float dis = distance( position, nodePosition );
-            for( int i = minY; i <= maxY; i++ )
+         float dis = distance( position, nodePosition );
+         for( int i = minY; i <= maxY; i++ )
+         {
+            for( int j = minX; j <= maxX; j++ )
             {
-               for( int j = minX; j <= maxX; j++ )
-               {
-                  float d = dot( cuberays[k][i][j], normal );
-                  if (d < 0.01 )// || cube.depth[k][i][j] < 0)
-                     continue;
-                  float atten = area/ (3 +dis+ 2*dis * dis);
-                  if( atten > 1 )
-                     atten = 1;
-                  cube.sides[k][i][j].r = c.r*d *atten;
-                  cube.sides[k][i][j].g = c.g*d *atten;
-                  cube.sides[k][i][j].b = c.b*d *atten;
-                  cube.depth[k][i][j] = dis;
-
-                  cube.sides[k][i][j] = c;
-                  cube.depth[k][i][j] = dis;
-               }
+               float d = dot( cuberays[k][i][j], normal );
+               if (d < 0.01 || cube.depth[k][i][j] < 0)
+                  continue;
+               cube.sides[k][i][j].r = c.r;
+               cube.sides[k][i][j].g = c.g;
+               cube.sides[k][i][j].b = c.b;
+               cube.depth[k][i][j] = dis;
             }
          }
-         delete []points;
       }
+      delete []points;
    }
 }
 void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetransforms,
@@ -992,92 +987,66 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
          continue;
       }
       glm::mat4 cur = M * cubetransforms[k] * eyeTrans;
-      glm::vec4 middle = glm::vec4( surfel.pos.x, surfel.pos.y, surfel.pos.z, 1.0 );
-      glm::vec4 temp = cur * middle;
-      temp[0] /= temp[3];
-      temp[1] /= temp[3];
-      temp[2] /= temp[3];
-      temp[3] = 1;
-      if (temp[0] > -0.001 && temp[0] < NPIXELS+0.001 && temp[1] > -0.001
-            && temp[1] < NPIXELS+.001 )
+      double length = sqrt( areas[k] );
+      glm::vec4 *points = getAxisAlinedPoints( surfel.pos, length/2.0, k );
+      points[0] = cur * points[0];
+      points[1] = cur * points[1];
+      points[2] = cur * points[2];
+      points[3] = cur * points[3];
+      for( int i = 0; i < 4; i++ )
       {
-         /*if( false &&surfel.pos.y < -3.5 && position.y > -3 )
-           {
-           printf("\n\nMID: %f %f %f\n", temp[0], temp[1], temp[2] );
-           printf("surfel: %f %f %f\n", surfel.pos.x, surfel.pos.y, surfel.pos.z );
-           printf("snorm: %f %f %f\n", surfel.normal.x, surfel.normal.y, surfel.normal.z );
-           printf("pos: %f %f %f\n", position.x, position.y, position.z );
-           printf("normal: %f %f %f\n", normal.x, normal.y, normal.z );
-           printf("diff: %f %f %f\n", diff.x, diff.y, diff.z );
-           printf("dot: %f\n", dot( normal, diff ) );
-           printf("Z: %f\n", temp[2] );
-           }
-          */
-         //printf("RASTER\n");
-         double length = sqrt( areas[k] );
-         glm::vec4 *points = getAxisAlinedPoints( surfel.pos, length/2.0, k );
-         points[0] = cur * points[0];
-         points[1] = cur * points[1];
-         points[2] = cur * points[2];
-         points[3] = cur * points[3];
-         for( int i = 0; i < 4; i++ )
+         points[i][0] /= points[i][3];
+         points[i][1] /= points[i][3];
+         points[i][2] /= points[i][3];
+         points[i][3] = 1;
+         //printf("Point: %f %f %f\n", points[i][0], points[i][1], points[i][2] );
+      }
+      int minX = 0;
+      int minY = 0;
+      int maxX = 0;
+      int maxY = 0;
+      minX = points[0][0];
+      maxX = points[0][0];
+      minY = points[0][1];
+      maxY = points[0][1];
+      for( int i = 0; i < 4; i++ )
+      {
+         if( minX > points[i][0] )
+            minX = roundf(points[i][0]);
+         if( minY > points[i][1] )
+            minY = roundf(points[i][1]);
+         if( maxX < points[i][0] )
+            maxX = roundf(points[i][0]);
+         if( maxY < points[i][1] )
+            maxY = roundf(points[i][1]);
+      }
+      //printf("minY: %d, maxY: %d, minX: %d, maxX: %d\n", minY, maxY, minX, maxX );
+      if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
+      {
+         if( minX < 0 )
+            minX = 0;
+         if( minY < 0 )
+            minY = 0;
+         if( maxX > 7 )
+            maxX = 7;
+         if( maxY > 7 )
+            maxY = 7;
+         float dis = distance( position, surfel.pos );
+         for( int i = minY; i <= maxY; i++ )
          {
-            points[i][0] /= points[i][3];
-            points[i][1] /= points[i][3];
-            points[i][2] /= points[i][3];
-            points[i][3] = 1;
-            //printf("Point: %f %f %f\n", points[i][0], points[i][1], points[i][2] );
-         }
-         int minX = 0;
-         int minY = 0;
-         int maxX = 0;
-         int maxY = 0;
-         minX = points[0][0];
-         maxX = points[0][0];
-         minY = points[0][1];
-         maxY = points[0][1];
-         for( int i = 0; i < 4; i++ )
-         {
-            if( minX > points[i][0] )
-               minX = roundf(points[i][0]);
-            if( minY > points[i][1] )
-               minY = roundf(points[i][1]);
-            if( maxX < points[i][0] )
-               maxX = roundf(points[i][0]);
-            if( maxY < points[i][1] )
-               maxY = roundf(points[i][1]);
-         }
-         //printf("minY: %d, maxY: %d, minX: %d, maxX: %d\n", minY, maxY, minX, maxX );
-         if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
-         {
-            if( minX < 0 )
-               minX = 0;
-            if( minY < 0 )
-               minY = 0;
-            if( maxX > 7 )
-               maxX = 7;
-            if( maxY > 7 )
-               maxY = 7;
-            float dis = distance( position, surfel.pos );
-            for( int i = minY; i <= maxY; i++ )
+            for( int j = minX; j <= maxX; j++ )
             {
-               for( int j = minX; j <= maxX; j++ )
-               {
-                  float d = dot( cuberays[k][j][i], normal );
-                  if (d < 0.001 || cube.depth[k][j][i] < 0)
-                     continue;
-                  float atten = areas[k]/ (dis * dis);
-                  if( atten > 1 )
-                     atten = 1;
-                  cube.sides[k][i][j].r = surfel.color.r*d *atten;
-                  cube.sides[k][i][j].g = surfel.color.g*d *atten;
-                  cube.sides[k][i][j].b = surfel.color.b*d *atten;
-                  cube.depth[k][i][j] = dis;
-               }
+               float d = dot( cuberays[k][j][i], normal );
+               if (d < 0.001 || cube.depth[k][j][i] < 0)
+                  continue;
+               cube.sides[k][i][j].r = surfel.color.r;
+               cube.sides[k][i][j].g = surfel.color.g;
+               cube.sides[k][i][j].b = surfel.color.b;
+               cube.depth[k][i][j] = dis;
             }
          }
-         delete []points;
       }
+      delete []points;
    }
 }
 
@@ -1127,30 +1096,30 @@ void raytraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, v
 float evaluateSphericalHermonicsArea( const TreeNode &node, vec3 &centerToEye )
 {
    float theta = acosf( centerToEye.z );
-   float phi = atanf( centerToEye.y / centerToEye.x );
-   printf("theta: %f %f\n", theta, phi);
-   float sin_theta = sinf(theta);
-   float cos_theta = cosf(theta);
-   float cos_phi = cosf(phi);
-   float sin_phi = sinf(phi);
-   float * TYlm = getYLM( sin_theta *cos_phi, sin_theta * sin_phi, cos_theta );
+   float phi;
+   if( centerToEye.x > 0.001 )
+      phi = atanf( centerToEye.y / centerToEye.x );
+   else
+      phi = acosf( centerToEye.x / sinf(theta) );
+   float * TYlm = getYLM( sinf(theta) *cosf(phi), sinf(theta) * sinf(phi), cosf(theta) );
    float area = 0;
 
    for( int i =0; i < 9; i++ )
    {
       area += node.hermonics.area[i] * TYlm[i];
    }
+   area = fmax(area, 0);
    return area;
 }
 Color evaluateSphericalHermonicsPower( const TreeNode &node, vec3 &centerToEye )
 {
    float theta = acosf( centerToEye.z );
-   float phi = atanf( centerToEye.y / centerToEye.x );
-   float sin_theta = sinf(theta);
-   float cos_theta = cosf(theta);
-   float cos_phi = cosf(phi);
-   float sin_phi = sinf(phi);
-   float * TYlm = getYLM( sin_theta *cos_phi, sin_theta * sin_phi, cos_theta );
+   float phi;
+   if( centerToEye.x > 0.001 )
+      phi = atanf( centerToEye.y / centerToEye.x );
+   else
+      phi = acosf( centerToEye.x / sinf(theta) );
+   float * TYlm = getYLM( sinf(theta) *cosf(phi), sinf(theta) * sinf(phi), cosf(theta) );
    Color color;
    color.r = 0;
    color.g = 0;
@@ -1162,5 +1131,11 @@ Color evaluateSphericalHermonicsPower( const TreeNode &node, vec3 &centerToEye )
       color.g += node.hermonics.green[i] * TYlm[i];
       color.b += node.hermonics.blue[i] * TYlm[i];
    }
+   color.r = fmin( color.r, 1.0 );
+   color.g = fmin( color.g, 1.0 );
+   color.b = fmin( color.b, 1.0 );
+   color.r = fmax( color.r, 0);
+   color.g = fmax( color.g, 0);
+   color.b = fmax( color.b, 0);
    return color;
 }

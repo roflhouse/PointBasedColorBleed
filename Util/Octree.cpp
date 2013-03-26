@@ -9,7 +9,7 @@
 
 #include "Octree.h"
 #define PI 3.14159265359
-#define MONTE_CARLO_N 512
+#define MONTE_CARLO_N 128 
 #define MAX_DEPTH  20
 
 int glob;
@@ -283,31 +283,18 @@ Hermonics calculateSphericalHermonics( struct Surfel &surfel )
             for( int k = 0; k < 9; k++ )
             {
                //Red
-               sh.red[k] += surfel.color.r * area * d_dot_n + TYlm[k] * sin_theta;
+               sh.red[k] += surfel.color.r  * d_dot_n * TYlm[k];
                //Green
-               sh.green[k] += surfel.color.g * area * d_dot_n + TYlm[k] * sin_theta;
+               sh.green[k] += surfel.color.g  * d_dot_n * TYlm[k];
                //Blue
-               sh.blue[k] += surfel.color.b * area * d_dot_n + TYlm[k] * sin_theta;
+               sh.blue[k] += surfel.color.b  * d_dot_n *TYlm[k];
                //area
-               sh.area[k] += (10 * d_dot_n * TYlm[k]);// * (4*PI/(MONTE_CARLO_N*MONTE_CARLO_N));
-               //sh.area[k] += d_dot_n * TYlm[k] * area * sin_theta/(512*512);
-               //printf("c: %f\n", sh.area[k]);
+               sh.area[k] += (area * d_dot_n * TYlm[k]);// * (4*PI/(MONTE_CARLO_N*MONTE_CARLO_N));
             }
-            /*for(int l=0; l<3; ++l) {
-              for(int m=-l; m<=l; ++m) {
-              int index = l*(l+1)+m;
-              sh.area[index] += (SH(l,m, theta, phi) * sin_theta * area * d_dot_n)*
-              (4*PI/(MONTE_CARLO_N*MONTE_CARLO_N));
-              if( fabs(SH(l,m,theta,phi) - TYlm[index]) >0.00001  )
-              printf("%f %f\n", SH(l,m,theta,phi), TYlm[index] );
-              }
-              }
-             */
          }
          free( TYlm );
       }
    }
-
    //Average
    averageHermonics( sh, ((4*PI)/((float)MONTE_CARLO_N*(float)MONTE_CARLO_N)));
    return sh;
@@ -379,7 +366,6 @@ void filloutHermonics( TreeNode *root )
          addHermonics( root->hermonics, temp );
       }
       s += root->SA.num;
-      //printf("Leaf done %d\n", s);
    }
    else
    {
