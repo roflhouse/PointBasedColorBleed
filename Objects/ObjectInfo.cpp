@@ -23,7 +23,7 @@ ObjectInfo createObjectInfo()
    obj.colorInfo.finish_ambient = 0;
    obj.colorInfo.finish_diffuse = 0;
    obj.colorInfo.finish_specular = 0;
-   obj.colorInfo.finish_roughness = 0;
+   obj.colorInfo.finish_roughness = 0.05;
    obj.colorInfo.finish_reflection = 0;
    obj.colorInfo.finish_refraction = 0;
    obj.colorInfo.finish_ior = 0;

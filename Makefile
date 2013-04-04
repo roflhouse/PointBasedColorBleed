@@ -3,9 +3,9 @@
 #  @author Nick Feeney
 CC=nvcc
 LD=nvcc
-CFLAGS=  -g -c -pg 
-CFLAGSCUDA= -g -pg -c  -arch=sm_21 
-LDFLAGS= -g -pg 
+CFLAGS=  -c -O3 
+CFLAGSCUDA= -c  -arch=sm_21 
+LDFLAGS= -O3 
 
 ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o Util/CudaRay.o 
 

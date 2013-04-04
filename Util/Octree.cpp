@@ -249,7 +249,6 @@ Hermonics calculateSphericalHermonics( struct Surfel &surfel )
    float area = PI * surfel.radius * surfel.radius;
 
    //Weighted Stocasically sample phi from 0 to 2pi
-   float simple_spacing = 1.0 / MONTE_CARLO_N;
 
    //Sum
    for( int j = 0; j < MONTE_CARLO_N; j++ )
@@ -270,8 +269,8 @@ Hermonics calculateSphericalHermonics( struct Surfel &surfel )
          float cos_phi = cosf(phi);
          vec3 d;
          d.x = sin_theta*cos_phi;
-         d.z = sin_theta*sin_phi;
-         d.y = cos_theta;
+         d.y = sin_theta*sin_phi;
+         d.z = cos_theta;
 
          float d_dot_n = dot( d, surfel.normal );
 
@@ -283,11 +282,11 @@ Hermonics calculateSphericalHermonics( struct Surfel &surfel )
             for( int k = 0; k < 9; k++ )
             {
                //Red
-               sh.red[k] += surfel.color.r  * d_dot_n * TYlm[k];
+               sh.red[k] += surfel.color.r * TYlm[k];
                //Green
-               sh.green[k] += surfel.color.g  * d_dot_n * TYlm[k];
+               sh.green[k] += surfel.color.g * TYlm[k];
                //Blue
-               sh.blue[k] += surfel.color.b  * d_dot_n *TYlm[k];
+               sh.blue[k] += surfel.color.b  *TYlm[k];
                //area
                sh.area[k] += (area * d_dot_n * TYlm[k]);// * (4*PI/(MONTE_CARLO_N*MONTE_CARLO_N));
             }

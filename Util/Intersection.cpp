@@ -53,7 +53,8 @@ Color directIllumination( const Intersection &inter, const Scene &scene )
             nlDot = 0;
          if(rvDot < 0)
             rvDot = 0;
-         float powRV = pow( rvDot, 1.0/inter.colorInfo.finish_roughness );
+         float n = 1.0/inter.colorInfo.finish_roughness;
+         float powRV = pow( rvDot, n );
 
          ret.r = ret.r + temp.color.r * powRV*inter.colorInfo.finish_specular;
          ret.g = ret.g + temp.color.g* powRV*inter.colorInfo.finish_specular;
