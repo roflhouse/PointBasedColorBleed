@@ -282,11 +282,11 @@ Hermonics calculateSphericalHermonics( struct Surfel &surfel )
             for( int k = 0; k < 9; k++ )
             {
                //Red
-               sh.red[k] += surfel.color.r * TYlm[k];
+               sh.red[k] += surfel.color.r * TYlm[k] * area *d_dot_n;
                //Green
-               sh.green[k] += surfel.color.g * TYlm[k];
+               sh.green[k] += surfel.color.g * TYlm[k] * area * d_dot_n;
                //Blue
-               sh.blue[k] += surfel.color.b  *TYlm[k];
+               sh.blue[k] += surfel.color.b  *TYlm[k] * area * d_dot_n;
                //area
                sh.area[k] += (area * d_dot_n * TYlm[k]);// * (4*PI/(MONTE_CARLO_N*MONTE_CARLO_N));
             }

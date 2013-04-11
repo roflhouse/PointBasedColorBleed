@@ -15,7 +15,7 @@
 
 #define PI 3.141592
 #define MAXDEPTH 15
-#define MAX_ANGLE 0.03
+#define MAX_ANGLE 0.1
 #define FAR_PLANE -100.0
 #define NEAR_PLANE -1.0
 #define RIGHT 1
@@ -357,8 +357,8 @@ void tester( const struct TreeNode &tree, vec3 ***cuberay, glm::mat4 *cubetrans 
    color.g =0;
    color.b =0;
    vec3 normal;
-   normal.x = 0;
-   normal.y = -1;
+   normal.x = -1;
+   normal.y = 0;
    normal.z = 0;
    RasterCube cube;
    for( int i = 0; i <6; i++)
@@ -378,10 +378,42 @@ void tester( const struct TreeNode &tree, vec3 ***cuberay, glm::mat4 *cubetrans 
          }
 
    vec3 hit;
-   hit.x =0;
-   hit.y =4;
+   hit.x =5;
+   hit.y =0;
    hit.z =0;
    traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, normal, cuberay, cubetrans );
+   /*normal.x = 0;
+     normal.y = 1;
+     normal.z = 0;
+     for( int i = 0; i <6; i++)
+     for( int j = 0; j<8; j++)
+     for( int k =0; k<8;k++)
+     {
+     float ndotr = dot(normal, cuberay[i][j][k]);
+     if( ndotr < 0.001 )
+     {
+     cube.depth[i][j][k] = -1;
+     }
+     else {
+     cube.sides[i][j][k] = color;
+     cube.depth[i][j][k] = -FAR_PLANE+1;
+     }
+     }
+     traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, normal, cuberay, cubetrans );
+   for( int i = 0; i <6; i++)
+   {
+      printf("Side %d\n", i );
+      for( int j = 0; j<8; j++)
+      {
+         for( int k =0; k<8;k++)
+         {
+            printf("%f %f %f, ", cube.sides[i][j][k].r, cube.sides[i][j][k].g, cube.sides[i][j][k].b );
+         }
+         printf("\n");
+      }
+      printf("\n");
+   }
+    */
    displayRasterCube(cube, 0);
 }
 Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, glm::mat4 *cubetrans )
@@ -459,7 +491,7 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, gl
       color.g += cur.color.g;
       color.b += cur.color.b;
       */
-      
+
       color.r = fmin( color.r, 1.0 );
       color.r = fmax( color.r, 0.0 );
       color.g = fmin( color.g, 1.0 );
@@ -564,9 +596,9 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       //Whole box is above horizon so go
       vec3 center;
       center = newDirection(node.box.max, node.box.min);
-      center.x /= 2;
-      center.y /= 2;
-      center.z /= 2;
+      center.x /= 2.0;
+      center.y /= 2.0;
+      center.z /= 2.0;
 
       vec3 centerToEye = newDirection( center, position );
       centerToEye = unit(centerToEye);
@@ -733,9 +765,9 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
             maxY = 7;
 
          float dis = distance( position, nodePosition );
-         for( int i = minY; i <= maxY; i++ )
+         for( int i = minY; i < maxY; i++ )
          {
-            for( int j = minX; j <= maxX; j++ )
+            for( int j = minX; j < maxX; j++ )
             {
                if (cube.depth[k][i][j] < 0)
                   continue;
@@ -919,9 +951,10 @@ Color evaluateSphericalHermonicsPower( const TreeNode &node, vec3 &centerToEye )
       color.g += node.hermonics.green[i] * TYlm[i];
       color.b += node.hermonics.blue[i] * TYlm[i];
    }
-   color.r = fmin( color.r, 1.0 );
-   color.g = fmin( color.g, 1.0 );
-   color.b = fmin( color.b, 1.0 );
+   /*color.r = fmin( color.r, 1.0 );
+     color.g = fmin( color.g, 1.0 );
+     color.b = fmin( color.b, 1.0 );
+    */
    color.r = fmax( color.r, 0);
    color.g = fmax( color.g, 0);
    color.b = fmax( color.b, 0);
