@@ -9,14 +9,16 @@
 
 #include "Octree.h"
 #define PI 3.14159265359
-#define MONTE_CARLO_N 128 
+#define MONTE_CARLO_N 256
 #define MAX_DEPTH  20
+#define MAX_OCTREE_SIZE 1000
 
 int glob;
 int count( TreeNode *root );
 int buildOctreeArray( TreeNode *tree, ArrayNode *octree, int &cur, SurfelArray &SA );
 TreeNode createOctree( SurfelArray &SA, vec3 min, vec3 max )
 {
+   int num = SA.num;
    TreeNode *root = (TreeNode *) malloc( sizeof(TreeNode) );
 
    min.x -= .0001;
@@ -25,6 +27,13 @@ TreeNode createOctree( SurfelArray &SA, vec3 min, vec3 max )
    max.x += 0.0001;
    max.y += 0.0001;
    max.z += 0.0001;
+   min.x = fmax( min.x, -MAX_OCTREE_SIZE );
+   min.y = fmax( min.y, -MAX_OCTREE_SIZE );
+   min.z = fmax( min.z, -MAX_OCTREE_SIZE );
+   max.x = fmin( max.x, MAX_OCTREE_SIZE );
+   max.y = fmin( max.y, MAX_OCTREE_SIZE );
+   max.z = fmin( max.z, MAX_OCTREE_SIZE );
+
    root->box = createBoundingBox( min, max );
    root->SA = SA;
    printf("first %d\n", SA.num );
@@ -42,9 +51,100 @@ TreeNode createOctree( SurfelArray &SA, vec3 min, vec3 max )
    int numberNodes = count( root );
    printf("Octree constructed filling out SphericalHermonics for nodes\n");
 
-   filloutHermonics( root );
+   filloutHermonics( root, num );
 
    printf("Octree finished %d\n", numberNodes);
+   return *root;
+}
+void addToNode( TreeNode *root, const Surfel &surfel )
+{
+   if( root->leaf && root->SA.num >= 31 )
+   {
+      BoundingBox *boxes = getSubBoxes( root->box );
+      for( int i = 0; i < 8; i++ )
+      {
+         root->children[i] = (TreeNode *)malloc( sizeof(TreeNode) );
+         root->children[i]->leaf = true;
+         root->children[i]->SA = createSurfelArray( 33 );
+         root->children[i]->box = boxes[i];
+         clearHermonics( root->children[i]->hermonics );
+      }
+      free(boxes);
+
+      for( int i = 0; i < root->SA.num ; i++ )
+      {
+         for( int k = 0; k < 8; k++ )
+         {
+            if( isIn( root->children[k]->box, root->SA.array[i].pos ) )
+            {
+               addToNode( root->children[k], root->SA.array[i] );
+               break;
+            }
+         }
+      }
+      root->leaf = false;
+      freeSurfelArray( root->SA );
+   }
+   if( root->leaf )
+   {
+      addToSA( root->SA, surfel );
+   }
+   else
+   {
+      for( int k = 0; k < 8; k++ )
+      {
+         if( isIn( root->children[k]->box, surfel.pos ) )
+         {
+            addToNode( root->children[k], surfel );
+            return;
+         }
+      }
+   }
+}
+TreeNode createOctreeMark2( SurfelArray &SA, vec3 min, vec3 max )
+{
+   int num = SA.num;
+   TreeNode *root = (TreeNode *) malloc( sizeof(TreeNode) );
+
+   min.x -= .0001;
+   min.y -= .0001;
+   min.z -= .0001;
+   max.x += 0.0001;
+   max.y += 0.0001;
+   max.z += 0.0001;
+   min.x = fmax( min.x, -MAX_OCTREE_SIZE );
+   min.y = fmax( min.y, -MAX_OCTREE_SIZE );
+   min.z = fmax( min.z, -MAX_OCTREE_SIZE );
+   max.x = fmin( max.x, MAX_OCTREE_SIZE );
+   max.y = fmin( max.y, MAX_OCTREE_SIZE );
+   max.z = fmin( max.z, MAX_OCTREE_SIZE );
+   printf("%f %f %f, %f %f %f\n", min.x, min.y, min.z, max.x, max.y, max.z );
+
+   root->box = createBoundingBox( min, max );
+   root->leaf = true;
+   root->SA = createSurfelArray( 33 );
+   clearHermonics( root->hermonics );
+
+   printf("Createing Octree\n");
+   int curPercent = 0;
+   int lastPercent = 0;
+   for( int i =0; i < SA.num; i++ )
+   {
+      addToNode( root, SA.array[i] );
+      curPercent = (float)i / SA.num * 100;
+      if( curPercent > lastPercent )
+      {
+         printf("Percent Complete: %d   \r", curPercent);
+         lastPercent = curPercent;
+      }
+   }
+   freeSurfelArray( SA );
+
+   printf("Percent Complete: 100   \r\n" );
+   printf("Filling Out Hermonics: num: %d\n", SA.num);
+   printf("Percent Complete: 0    \r");
+   filloutHermonics( root, num );
+   printf("Percent Complete: 100   \n");
    return *root;
 }
 int count( TreeNode *root )
@@ -162,7 +262,7 @@ TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth )
    TreeNode *ret = (TreeNode *) malloc ( sizeof( TreeNode ) );
    ret->hermonics = createHermonics();
    ret->box = box;
-   ret->SA = createSurfelArray();
+   ret->SA = createSurfelArray( root->SA.num );
    for( int i = 0; i < root->SA.num; i++ )
    {
       if( isIn( ret->box, root->SA.array[i].pos ) )
@@ -237,16 +337,20 @@ else return sqrt2*K(l,-m)*sin(-m*phi)*P(l,-m,cos(theta));
  */
 Hermonics calculateSphericalHermonics( struct Surfel &surfel )
 {
+   double red[9];
+   double green[9];
+   double blue[9];
+   double areas[9];
    Hermonics sh;
    for( int i = 0; i < 9; i++ )
    {
-      sh.red[i] = 0;
-      sh.green[i] = 0;
-      sh.blue[i] = 0;
-      sh.area[i] = 0;
+      red[i] = 0;
+      green[i] = 0;
+      blue[i] = 0;
+      areas[i] = 0;
    }
 
-   float area = PI * surfel.radius * surfel.radius;
+   double area = PI * surfel.radius * surfel.radius;
 
    //Weighted Stocasically sample phi from 0 to 2pi
 
@@ -255,56 +359,64 @@ Hermonics calculateSphericalHermonics( struct Surfel &surfel )
    {
       for( int i = 0; i < MONTE_CARLO_N; i++ )
       {
-         float r = (float)rand() / (float)RAND_MAX;
-         float x = (j + r) / MONTE_CARLO_N;
-         r = (float)rand() / (float)RAND_MAX;
-         float y = (i + r) / MONTE_CARLO_N;
+         double r = (double)rand() / (double)RAND_MAX;
+         double x = ((double)j + r) / MONTE_CARLO_N;
+         r = (double)rand() / (double)RAND_MAX;
+         double y = ((double)i + r) / MONTE_CARLO_N;
 
-         float phi = 2.0 * PI * y;
-         float theta = 2 * acosf( sqrt( 1.0 - x ) );
+         double phi = 2.0 * PI * y;
+         double theta = 2.0 * acos( sqrt( 1.0 - x ) );
 
-         float sin_theta = sinf(theta);
-         float cos_theta = cosf(theta);
-         float sin_phi = sinf(phi);
-         float cos_phi = cosf(phi);
-         vec3 d;
-         d.x = sin_theta*cos_phi;
-         d.y = sin_theta*sin_phi;
-         d.z = cos_theta;
+         double sin_theta = sin(theta);
+         double cos_theta = cos(theta);
+         double sin_phi = sin(phi);
+         double cos_phi = cos(phi);
+         double dx = sin_theta*cos_phi;
+         double dy = sin_theta*sin_phi;
+         double dz = cos_theta;
 
-         float d_dot_n = dot( d, surfel.normal );
+         double d_dot_n = dx * (double)surfel.normal.x;
+         d_dot_n += dy * (double)surfel.normal.y;
+         d_dot_n += dz * (double)surfel.normal.z;
 
-         float *TYlm = getYLM( sin_theta * cos_phi, sin_theta* sin_phi, cos_theta );
+         double *TYlm = getYLM( sin_theta * cos_phi, sin_theta* sin_phi, cos_theta );
 
          //now > 0
-         if(d_dot_n > 0)
+         if(d_dot_n > 0.0)
          {
             for( int k = 0; k < 9; k++ )
             {
                //Red
-               sh.red[k] += surfel.color.r * TYlm[k] * area *d_dot_n;
+               red[k] += ((double)surfel.color.r * (double)TYlm[k] * (double)area *(double)d_dot_n);
                //Green
-               sh.green[k] += surfel.color.g * TYlm[k] * area * d_dot_n;
+               green[k] += surfel.color.g * TYlm[k] * area * d_dot_n;
                //Blue
-               sh.blue[k] += surfel.color.b  *TYlm[k] * area * d_dot_n;
+               blue[k] += surfel.color.b  *TYlm[k] * area * d_dot_n;
                //area
-               sh.area[k] += (area * d_dot_n * TYlm[k]);// * (4*PI/(MONTE_CARLO_N*MONTE_CARLO_N));
+               areas[k] += (area * d_dot_n * TYlm[k]);
             }
          }
          free( TYlm );
       }
+   }
+   for( int i =0; i < 9; i++ )
+   {
+      sh.red[i] = red[i];
+      sh.green[i] = green[i];
+      sh.blue[i] = blue[i];
+      sh.area[i] = areas[i];
    }
    //Average
    averageHermonics( sh, ((4*PI)/((float)MONTE_CARLO_N*(float)MONTE_CARLO_N)));
    return sh;
 }
 
-float *getYLM( float x, float y, float z )
+double *getYLM( double x, double y, double z )
 {
-   const static float Ylm[9] = { 0.282095, .488603,.488603,.488603,
+   const static double Ylm[9] = { 0.282095, .488603,.488603,.488603,
       1.092548, 1.092548, 1.092548, 0.315392, .546274 };
 
-   float *ret = (float *)malloc( sizeof(float) * 9 );
+   double *ret = (double *)malloc( sizeof(double) * 9 );
    ret[0] = Ylm[0]; //0 0
    ret[1] = Ylm[3] * -y;//1 -1
    ret[2] = Ylm[2] * z;//1 0
@@ -315,6 +427,16 @@ float *getYLM( float x, float y, float z )
    ret[7] = Ylm[4] * -x * z; //2 1
    ret[8] = Ylm[8] * (x*x - y*y); //2 2
    return ret;
+}
+void clearHermonics( Hermonics &hermonics )
+{
+   for( int i =0; i< 9; i++ )
+   {
+      hermonics.red[i] = 0;
+      hermonics.green[i] = 0;
+      hermonics.blue[i] = 0;
+      hermonics.area[i] = 0;
+   }
 }
 Hermonics createHermonics()
 {
@@ -349,7 +471,7 @@ void averageHermonics( Hermonics &save, float factor )
    }
 }
 
-void filloutHermonics( TreeNode *root )
+void filloutHermonics( TreeNode *root, int total )
 {
    static int s = 0;
    static int in = 0;
@@ -365,6 +487,7 @@ void filloutHermonics( TreeNode *root )
          addHermonics( root->hermonics, temp );
       }
       s += root->SA.num;
+      printf("Percent Complete: %d    \r", (int) ((float)s/(float)total * 100) );
    }
    else
    {
@@ -372,7 +495,7 @@ void filloutHermonics( TreeNode *root )
       //printf("Doing children %d\n", in);
       for( int j = 0; j < 8; j++ )
       {
-         filloutHermonics( root->children[j] );
+         filloutHermonics( root->children[j], total );
          addHermonics( root->hermonics, root->children[j]->hermonics );
       }
    }

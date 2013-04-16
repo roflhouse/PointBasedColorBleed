@@ -80,8 +80,8 @@ Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
    surfel.distance = -dot( normal, inter.hitMark );
    surfel.normal = normal;
    surfel.color = directIllumination( inter, scene );
-   surfel.radius = .2;
-   surfel.info = inter.colorInfo;
+   surfel.radius = .01;
+   //surfel.info = inter.colorInfo;
    return surfel;
 }
 Sphere intersectionToSphere( const Intersection &inter, const Scene &scene )
@@ -95,12 +95,12 @@ Sphere intersectionToSphere( const Intersection &inter, const Scene &scene )
 
 /////Intersection Array//////////
 
-IntersectionArray createIntersectionArray()
+IntersectionArray createIntersectionArray( int num )
 {
    IntersectionArray IA;
-   IA.array = (Intersection *) malloc( sizeof(Intersection) * 1000 );
+   IA.array = (Intersection *) malloc( sizeof(Intersection) * num );
    IA.num = 0;
-   IA.max = 1000;
+   IA.max = num;
    return IA;
 }
 void growIA( IntersectionArray &in )

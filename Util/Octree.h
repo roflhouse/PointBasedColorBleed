@@ -48,12 +48,14 @@ typedef struct Octree {
 } Octree;
 
 TreeNode createOctree( struct SurfelArray &SA, vec3 min, vec3 max );
+TreeNode createOctreeMark2( struct SurfelArray &SA, vec3 min, vec3 max );
 TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth );
 ArrayNode *createOctreeForCuda( struct SurfelArray &SA, vec3 min, vec3 max, int &size );
 Hermonics calculateSphericalHermonics( struct Surfel &surfel );
-float *getYLM(float x, float y, float z);
-void filloutHermonics( TreeNode *root );
+double *getYLM(double x, double y, double z);
+void filloutHermonics( TreeNode *root, int total );
 Hermonics createHermonics();
+void clearHermonics( Hermonics &hermonics );
 void addHermonics( Hermonics &save, Hermonics &gone );
 void averageHermonics( Hermonics &save, float factor );
 double SH(int l, int m, double theta, double phi);

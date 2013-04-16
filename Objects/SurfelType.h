@@ -17,7 +17,7 @@ typedef struct Surfel {
    float distance;
    Color color;
    float radius;
-   ColorInfo info;
+   //ColorInfo info;
 } Surfel;
 
 typedef struct SurfelArray {
@@ -25,7 +25,7 @@ typedef struct SurfelArray {
    int num;
    int max;
 } SurfelArray;
-SurfelArray createSurfelArray();
+SurfelArray createSurfelArray( int num=1000 );
 void growSA( SurfelArray &array );
 void freeSurfelArray( SurfelArray &in );
 void addToSA( SurfelArray &in, const Surfel &surfel );

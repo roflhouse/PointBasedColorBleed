@@ -201,10 +201,22 @@ void castRays( const TreeNode &tree, Ray *rays, int numRays, Color *buffer, int 
    glm::mat4 *cubetrans;
    vec3 ***cuberays = initCuberays();
    initCubeTransforms( &cubetrans );
+   printf("Casting Rays: \n");
+   int last = 0;
+   int cur =0;
+   //pollTest( tree, MAX_ANGLE, cuberays, cubetrans );
    for( int i = 0; i < numRays; i++ )
    {
       buffer[rays[i].i*width + rays[i].j] = raytrace( tree, rays[i], (vec3 ***)cuberays, cubetrans );
+      cur = (int)((float)i / (float)numRays * 100);
+      if ( cur > last )
+      {
+         printf("Percent Complete: %d      \r", cur);
+         fflush(stdout);
+         last = cur;
+      }
    }
+   printf("Percent Complete: 100     \n");
    tester( tree, (vec3 ***)cuberays, cubetrans );
 }
 ArrayNode *createSurfelsCuda( const Scene &scene, Ray *rays, int numRays, SurfelArray &SA, int &size )
@@ -245,7 +257,7 @@ TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
       collectIntersections( scene, rays[i], IA );
    }
    shrinkIA( IA );
-   SurfelArray SA = createSurfelArray();
+   SurfelArray SA = createSurfelArray( IA.num );
    for( int i = 0; i < IA.num; i++ )
    {
       if( i == 0 )
@@ -259,7 +271,7 @@ TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
    }
    shrinkSA( SA );
 
-   return createOctree( SA, min, max );
+   return createOctreeMark2( SA, min, max );
 }
 void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA )
 {
@@ -316,39 +328,6 @@ void displayRasterCube( RasterCube &cube, int num )
       }
       outfile.writeTga( s.str().c_str() );
    }
-   /*
-      for( int i = 0; i < 6; i++ )
-      {
-      std::stringstream s;
-      s << "Output/side-" << num << "-" <<i << "depth.tga";
-      printf("%s\n",s.str().c_str());
-      Tga outfile( 8, 8 );
-      Color *buffer = outfile.getBuffer();
-      for( int j = 0; j < 8; j++ )
-      {
-      for( int k =0; k < 8; k++ )
-      {
-      float dep = cube.depth[i][j][k]/10;
-      float b = 0;
-      if( dep < 10 && dep > 0 )
-      printf( "dep %f\n", dep*10 );
-      if( dep < 0 )
-      dep = 1;
-      else if( dep < 10 )
-      {
-      dep = 0;
-      b = 1;
-      }
-      Color c;
-      c.r = 0;
-      c.g = dep;
-      c.b = b;
-      buffer[(7-j)*8 + k] = c;
-      }
-      }
-      outfile.writeTga( s.str().c_str() );
-      }
-    */
 }
 void tester( const struct TreeNode &tree, vec3 ***cuberay, glm::mat4 *cubetrans )
 {
@@ -382,39 +361,52 @@ void tester( const struct TreeNode &tree, vec3 ***cuberay, glm::mat4 *cubetrans 
    hit.y =0;
    hit.z =0;
    traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, normal, cuberay, cubetrans );
-   /*normal.x = 0;
-     normal.y = 1;
-     normal.z = 0;
-     for( int i = 0; i <6; i++)
-     for( int j = 0; j<8; j++)
-     for( int k =0; k<8;k++)
-     {
-     float ndotr = dot(normal, cuberay[i][j][k]);
-     if( ndotr < 0.001 )
-     {
-     cube.depth[i][j][k] = -1;
-     }
-     else {
-     cube.sides[i][j][k] = color;
-     cube.depth[i][j][k] = -FAR_PLANE+1;
-     }
-     }
-     traverseOctreeCPU( cube, tree, MAX_ANGLE, hit, normal, cuberay, cubetrans );
-   for( int i = 0; i <6; i++)
-   {
-      printf("Side %d\n", i );
-      for( int j = 0; j<8; j++)
-      {
-         for( int k =0; k<8;k++)
-         {
-            printf("%f %f %f, ", cube.sides[i][j][k].r, cube.sides[i][j][k].g, cube.sides[i][j][k].b );
-         }
-         printf("\n");
-      }
-      printf("\n");
-   }
-    */
    displayRasterCube(cube, 0);
+}
+void pollTest( const struct TreeNode &tree, float angle, vec3 ***cuberay, glm::mat4 *cubetrans )
+{
+   Color color;
+   color.r = 0;
+   color.g = 0;
+   color.b = 0;
+   while(true)
+   {
+      vec3 point;
+      vec3 normal;
+      std::cout << "Enter the point: x y z" << std::endl;
+      std::cin >> point.x;
+      std::cin >> point.y;
+      std::cin >> point.z;
+
+      std::cout << "Enter normal: x y z" << std::endl;
+      std::cin >> normal.x;
+      std::cin >> normal.y;
+      std::cin >> normal.z;
+      RasterCube cube;
+      for( int i = 0; i <6; i++)
+         for( int j = 0; j<8; j++)
+            for( int k =0; k<8;k++)
+            {
+               float ndotr = dot(normal, cuberay[i][j][k]);
+               if( ndotr < 0.001 )
+               {
+                  cube.sides[i][j][k] = color;
+                  cube.depth[i][j][k] = -1;
+               }
+               else {
+                  cube.sides[i][j][k] = color;
+                  cube.depth[i][j][k] = -FAR_PLANE+1;
+               }
+            }
+
+      traverseOctreeCPU( cube, tree, MAX_ANGLE, point, normal, cuberay, cubetrans );
+      displayRasterCube( cube, 1 );
+      std::cout << "Exit? y/n" << std::endl;
+      char x;
+      std::cin >> x;
+      if (x == 'y')
+         return;
+   }
 }
 Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, glm::mat4 *cubetrans )
 {
@@ -481,16 +473,9 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, gl
          color.g /= (float)num;
          color.b /= (float)num;
       }
-      if( num > 0 && !(it % 10)  )
-      {
-         printf( "num: %d         \r", it );
-         fflush(stdout);
-      }
-
-      /*color.r += cur.color.r;
+      color.r += cur.color.r;
       color.g += cur.color.g;
       color.b += cur.color.b;
-      */
 
       color.r = fmin( color.r, 1.0 );
       color.r = fmax( color.r, 0.0 );
@@ -600,7 +585,7 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       center.y /= 2.0;
       center.z /= 2.0;
 
-      vec3 centerToEye = newDirection( center, position );
+      vec3 centerToEye = newDirection( position, center );
       centerToEye = unit(centerToEye);
 
       float dis = distanceToBox( node.box, position );
@@ -701,6 +686,34 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
 {
    const static glm::mat4 M = getViewPixelMatrix() * getOrthMatrix() * getProjectMatrix();
    const static glm::vec4 *wVecs = getWVecs();
+   printf("view-pixel\n");
+   for( int e = 0; e < 4; e++ )
+   {
+      for( int a = 0; a < 4; a++ )
+      {
+         printf("%f ", glm::transpose(getViewPixelMatrix())[e][a]);
+      }
+      printf("\n");
+   }
+   printf("Orth\n");
+   for( int e = 0; e < 4; e++ )
+   {
+      for( int a = 0; a < 4; a++ )
+      {
+         printf("%f ", glm::transpose(getOrthMatrix())[e][a]);
+      }
+      printf("\n");
+   }
+   printf("project\n");
+   for( int e = 0; e < 4; e++ )
+   {
+      for( int a = 0; a < 4; a++ )
+      {
+         printf("%f ", glm::transpose(getProjectMatrix())[e][a]);
+      }
+      printf("\n");
+   }
+   printf("eyeTrans\n");
    vec3 check = newDirection( nodePosition, position );
    check = unit(check);
    if( dot(check, normal) <= 0 )
@@ -709,8 +722,21 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
    eyeTrans[0][3] = -position.x;
    eyeTrans[1][3] = -position.y;
    eyeTrans[2][3] = -position.z;
+   eyeTrans = glm::transpose( eyeTrans );
+   for( int e = 0; e < 4; e++ )
+   {
+      for( int a = 0; a < 4; a++ )
+      {
+         printf("%f ", glm::transpose(eyeTrans)[e][a]);
+      }
+      printf("\n");
+   }
    float areas[6];
    glm::vec3 Snormal = glm::vec3(-check.x, -check.y, -check.z);
+   /*vec3 tp = newDirection( nodePosition, position );
+     tp = unit(tp);
+     glm::vec3 Snormal = glm::vec3(tp.x, tp.y, tp.z);
+    */
    for( int i =0; i < 6; i++ )
    {
       glm::vec3 t = glm::vec3(wVecs[i][0], wVecs[i][1], wVecs[i][2]);
@@ -719,19 +745,45 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
 
    for( int k = 0; k< 6; k++ )
    {
+      if( areas[k] <= 0 )
+         continue;
       float length = sqrtf(areas[k]);
       glm::mat4 cur = M * cubetransforms[k] * eyeTrans;
+
+      printf("cubetransforms\n");
+      for( int e = 0; e < 4; e++ )
+      {
+         for( int a = 0; a < 4; a++ )
+         {
+            printf("%f ", glm::transpose(cubetransforms[k])[e][a]);
+         }
+         printf("\n");
+      }
+      printf("Total\n");
+      for( int e = 0; e < 4; e++ )
+      {
+         for( int a = 0; a < 4; a++ )
+         {
+            printf("%f ", glm::transpose(cur)[e][a]);
+         }
+         printf("\n");
+      }
       glm::vec4 *points = getAxisAlinedPoints( nodePosition, length/2.0, k );
+      for( int i = 0; i < 4; i++ )
+         printf("Pre:%d, %d: %f %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2], points[i][3] );
       points[0] = cur * points[0];
       points[1] = cur * points[1];
       points[2] = cur * points[2];
       points[3] = cur * points[3];
+      for( int i = 0; i < 4; i++ )
+         printf("mid:%d, %d: %f %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2], points[i][3] );
       for( int i = 0; i < 4; i++ )
       {
          points[i][0] /= points[i][3];
          points[i][1] /= points[i][3];
          points[i][2] /= points[i][3];
          points[i][3] = 1;
+         printf("post:%d, %d: %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2] );
       }
       int minX = 0;
       int minY = 0;
@@ -744,15 +796,15 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
       for( int i = 1; i < 4; i++ )
       {
          if( minX > points[i][0] )
-            minX = roundf(points[i][0]);
+            minX = roundf(points[i][0]+0.5);
          if( minY > points[i][1] )
-            minY = roundf(points[i][1]);
+            minY = roundf(points[i][1]+0.5);
          if( maxX < points[i][0] )
-            maxX = roundf(points[i][0]);
+            maxX = roundf(points[i][0]+0.5);
          if( maxY < points[i][1] )
-            maxY = roundf(points[i][1]);
+            maxY = roundf(points[i][1]+0.5);
       }
-      //printf("min:%d %d %d %d\n", minX, maxX, minY, maxY);
+      printf("min: %d %d, %d %d", minX, maxX, minY, maxY );
       if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
       {
          if( minX < 0 )
@@ -765,9 +817,9 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
             maxY = 7;
 
          float dis = distance( position, nodePosition );
-         for( int i = minY; i < maxY; i++ )
+         for( int i = minY; i <= maxY; i++ )
          {
-            for( int j = minX; j < maxX; j++ )
+            for( int j = minX; j <= maxX; j++ )
             {
                if (cube.depth[k][i][j] < 0)
                   continue;
@@ -808,6 +860,7 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
    eyeTrans[3][0] = -position.x;
    eyeTrans[3][1] = -position.y;
    eyeTrans[3][2] = -position.z;
+   eyeTrans = glm::transpose( eyeTrans );
 
    //For each face
    for( int k = 0; k< 6; k++ )
@@ -841,13 +894,13 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
       for( int i = 1; i < 4; i++ )
       {
          if( minX > points[i][0] )
-            minX = roundf(points[i][0]);
+            minX = roundf(points[i][0] +0.5);
          if( minY > points[i][1] )
-            minY = roundf(points[i][1]);
+            minY = roundf(points[i][1] + 0.5);
          if( maxX < points[i][0] )
-            maxX = roundf(points[i][0]);
+            maxX = roundf(points[i][0] + 0.5);
          if( maxY < points[i][1] )
-            maxY = roundf(points[i][1]);
+            maxY = roundf(points[i][1] +0.5);
       }
       if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
       {
@@ -921,7 +974,7 @@ float evaluateSphericalHermonicsArea( const TreeNode &node, vec3 &centerToEye )
    float phi = atanf( centerToEye.y/centerToEye.x );
    float * TYlm = getYLM( sinf(theta) *cosf(phi), sinf(theta) * sinf(phi), cosf(theta) );
     */
-   float * TYlm = getYLM( centerToEye.x, centerToEye.y, centerToEye.z );
+   double * TYlm = getYLM( centerToEye.x, centerToEye.y, centerToEye.z );
 
    float area = 0;
 
@@ -939,7 +992,7 @@ Color evaluateSphericalHermonicsPower( const TreeNode &node, vec3 &centerToEye )
    float phi = atanf( centerToEye.y/centerToEye.x );
    float * TYlm = getYLM( sinf(theta) *cosf(phi), sinf(theta) * sinf(phi), cosf(theta) );
     */
-   float * TYlm = getYLM( centerToEye.x, centerToEye.y, centerToEye.z );
+   double * TYlm = getYLM( centerToEye.x, centerToEye.y, centerToEye.z );
    Color color;
    color.r = 0;
    color.g = 0;

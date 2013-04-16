@@ -35,6 +35,7 @@ Color raytrace( const struct SurfelArray &scene, const Ray &ray );
 
 TreeHitMark transTree( TreeNode root, const Ray &ray );
 
+void pollTest( const TreeNode &tree, float angle, vec3 ***cuberay, glm::mat4 *cubetrans );
 struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int numRays,
       SurfelArray &SA, int &size );
 Color raytrace( const struct ArrayNode *Tree, int size, SurfelArray &SA, const Ray &ray );

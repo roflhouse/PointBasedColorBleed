@@ -43,7 +43,7 @@ void growIA( IntersectionArray &array );
 void freeIntersectionArray( IntersectionArray &array );
 void addToIA( IntersectionArray &in, const Intersection &intersection );
 void shrinkIA( IntersectionArray &in );
-IntersectionArray createIntersectionArray();
+IntersectionArray createIntersectionArray( int num=1000 );
 
 struct Surfel intersectionToSurfel( const Intersection &inter, const struct Scene &scene );
 struct Sphere intersectionToSphere( const Intersection &inter, const struct Scene &scene );

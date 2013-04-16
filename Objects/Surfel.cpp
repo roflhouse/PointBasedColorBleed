@@ -38,12 +38,12 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
    else
       return -1;
 }
-SurfelArray createSurfelArray()
+SurfelArray createSurfelArray( int num )
 {
    SurfelArray IA;
-   IA.array = (Surfel *) malloc( sizeof(Surfel) * 1000 );
+   IA.array = (Surfel *) malloc( sizeof(Surfel) * num );
    IA.num = 0;
-   IA.max = 1000;
+   IA.max = num;
    return IA;
 }
 void growSA( SurfelArray &in )
