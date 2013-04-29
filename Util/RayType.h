@@ -1,20 +1,25 @@
 /**
  *  CPE 2012
  *  -------------------
- *  Program 
+ *  Program
  *
- *  Last Modified: 
+ *  Last Modified:
  *  @author Nick Feeney
  */
 
 #ifndef RAYTYPE_H
-#define RAYTYPE_H 
+#define RAYTYPE_H
+#include "ColorType.h"
+#include "../Objects/SurfelType.h"
 
 typedef struct Ray {
    vec3 pos;
    vec3 dir;
    int i, j;
 } Ray;
-int createInitRays( struct Ray **rays, int width, int height, float growth, struct Camera cam );
-int createDrawingRays( struct Ray **rays, int width, int height, struct Camera cam );
+typedef struct TreeHitMark {
+   float t;
+   Surfel surfel;
+   Color color;
+} TreeHitMark;
 #endif

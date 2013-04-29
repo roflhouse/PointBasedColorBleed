@@ -11,46 +11,16 @@
 #define OCTREE_H
 #include "BoundingBox.h"
 #include "../Objects/SurfelType.h"
+//#include "CudaOctree.h"
 #include "vec3.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-typedef struct Hermonics {
-   float red[9];
-   float green[9];
-   float blue[9];
-   float area[9];
-} Hermonics;
-typedef struct TreeNode {
-   int leaf;
-   struct BoundingBox box;
-   struct TreeNode *children[8];
-   struct SurfelArray SA;
-   struct Hermonics hermonics;
-} TreeNode;
-typedef struct ArrayNode {
-   int leaf;
-   struct BoundingBox box;
-   int children[8];
-} ArrayNode;
-
-typedef struct Node {
-   int leaf;
-   int children[8];
-   struct BoundingBox box;
-} Node;
-
-typedef struct Octree {
-   struct BoundingBox box;
-   int nodes[8];
-   int numNodes;
-} Octree;
+#include "OctreeType.h"
 
 TreeNode createOctree( struct SurfelArray &SA, vec3 min, vec3 max );
 TreeNode createOctreeMark2( struct SurfelArray &SA, vec3 min, vec3 max );
 TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth );
-ArrayNode *createOctreeForCuda( struct SurfelArray &SA, vec3 min, vec3 max, int &size );
 Hermonics calculateSphericalHermonics( struct Surfel &surfel );
 double *getYLM(double x, double y, double z);
 void filloutHermonics( TreeNode *root, int total );
@@ -59,5 +29,12 @@ void clearHermonics( Hermonics &hermonics );
 void addHermonics( Hermonics &save, Hermonics &gone );
 void averageHermonics( Hermonics &save, float factor );
 double SH(int l, int m, double theta, double phi);
+int octreeToCudaTree( TreeNode *cpu_root, CudaTree* gpu_root, int current_node, 
+      SurfelArray &gpu_array );
+void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaTree* &gpu_root,
+            SurfelArray &gpu_array );
+int countNodes( TreeNode *root );
+int countLeafNodes( TreeNode *root );
+int getLeafAddrs( CudaTree *gpu_root, int node, int *leaf_addrs, int current );
 
 #endif

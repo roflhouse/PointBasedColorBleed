@@ -14,7 +14,4 @@ typedef struct Color {
    float g;
    float b;
 } Color;
-
-Color limitColor( const Color &in );
-Color plus( const Color &first, const Color &other );
 #endif

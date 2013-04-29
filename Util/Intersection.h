@@ -18,22 +18,9 @@
 #include <string.h>
 #include <ctype.h>
 #include "vec3.h"
-#include "Color.h"
+#include "ColorType.h"
 #include "../Objects/ObjectInfo.h"
-
-typedef struct Intersection {
-   vec3 hitMark;
-   vec3 normal;
-   vec3 viewVector;
-   float hit;
-   ColorInfo colorInfo;
-} Intersection;
-
-typedef struct IntersectionArray {
-   Intersection *array;
-   int num;
-   int max;
-} IntersectionArray;
+#include "IntersectionType.h"
 #include "../Objects/Surfel.h"
 #include "Scene.h"
 

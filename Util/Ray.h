@@ -10,36 +10,32 @@
 #ifndef RAY_H
 #define RAY_H
 #include "vec3.h"
-#include "Color.h"
+#include "ColorType.h"
 #include "RasterCube.h"
-
 #include "../Objects/Objects.h"
 #include "RayType.h"
-
 #include "Scene.h"
 #include "Intersection.h"
+#include "UtilTypes.h"
+#include "../Objects/Surfel.h"
+#include "Octree.h"
+#include "OctreeType.h"
+#include "BoundingBox.h"
+
+int createInitRays( struct Ray **rays, int width, int height, float growth, struct Camera cam );
+int createDrawingRays( struct Ray **rays, int width, int height, struct Camera cam );
 struct SurfelArray createSurfels( const struct Scene &scene, Ray *rays, int numRays );
 struct Scene createSurfelSpheres( const struct Scene &scene, Ray *rays, int numRays );
 void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA );
-#include "Octree.h"
 struct TreeNode createSurfelTree( const struct Scene &scene, Ray *rays, int numRays );
 void castRays( const struct TreeNode &scene, struct Ray *rays, int numRays, Color *buffer, int width );
 Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, glm::mat4 *cubtrans );
-#include "../Objects/Surfel.h"
-typedef struct TreeHitMark {
-   float t;
-   Surfel surfel;
-   Color color;
-} TreeHitMark;
+
 Color raytrace( const struct SurfelArray &scene, const Ray &ray );
 
 TreeHitMark transTree( TreeNode root, const Ray &ray );
 
 void pollTest( const TreeNode &tree, float angle, vec3 ***cuberay, glm::mat4 *cubetrans );
-struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int numRays,
-      SurfelArray &SA, int &size );
-Color raytrace( const struct ArrayNode *Tree, int size, SurfelArray &SA, const Ray &ray );
-struct ArrayNode *createSurfelsCuda( const struct Scene &scene, Ray *rays, int numRays, int &size );
 
 void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle, vec3 &position,
       vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetrans);

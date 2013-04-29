@@ -25,13 +25,18 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "Util/RasterCube.h"
 #include "Util/Ray.h"
-#include "Util/Color.h"
+#include "Util/ColorType.h"
 #include "Util/Tga.h"
 #include "Util/Octree.h"
 #include <iostream>
 #include <sstream>
 #include <string>
 #include "Util/Parser.h"
+extern "C" int getTime( );
+extern "C" float getDiffTime( int start, int end );
+extern "C" void testME();
+extern "C" void gpuFilloutSphericalHermonics( CudaNode *root, int nodes, SurfelArray &SA,
+      int *leaf_addrs, int leaf_nodes );
 struct SHSample {
    double sph[3];
    double vec[3];
@@ -747,12 +752,140 @@ void sceneLightingTest(int argc, char *argv[])
 
    rasterizeClusterToCube( cube, c, area, getCenter(surfels.box), cubetrans, cuberays, pos, normal );
    displayRasterCube( cube );
+   int num = 0;
+   color.r = 0;
+   color.g = 0;
+   color.b = 0;
+   for( int i = 0; i <6; i++)
+      for( int j = 0; j<8; j++)
+         for( int k =0; k<8;k++)
+         {
+            if( cube.depth[i][j][k] < 0 )
+               continue;
+            num++;
+            if( cube.depth[i][j][k] < 100 +1 )
+            {
+               float dotProd = dot( cuberays[i][j][k], normal );
+               if(cube.sides[i][j][k].r > 0 )
+                  color.r += cube.sides[i][j][k].r*dotProd;
+               if(cube.sides[i][j][k].g > 0 )
+                  color.g += cube.sides[i][j][k].g*dotProd;
+               if(cube.sides[i][j][k].b > 0 )
+                  color.b += cube.sides[i][j][k].b*dotProd;
+            }
+         }
+
+   if( num > 0 )
+   {
+      color.r /= (float)num;
+      color.g /= (float)num;
+      color.b /= (float)num;
+   }
+   printf("Calculated Point:( %f, %f, %f ): Color: (%f, %f, %f)\n", pos.x, pos.y, pos.z, color.r,
+         color.g, color.b );
+
 
    sphereLightingTest( surfels.hermonics );
+}
+void checkTrees( CudaTree *gpu_root, TreeNode *cpu_root, int cur_array, SurfelArray &gpu_array )
+{
+   if( !equals(gpu_root[cur_array].box, cpu_root->box) )
+   {
+      vec3 min = gpu_root[cur_array].box.min;
+      vec3 max = gpu_root[cur_array].box.max;
+      printf("Problem %f %f %f, %f %f %f  ", min.x, min.y, min.z, max.x, max.y, max.z );
+      min = cpu_root->box.min;
+      max = cpu_root->box.max;
+      printf("Problem %f %f %f, %f %f %f\n", min.x, min.y, min.z, max.x, max.y, max.z );
+      printf("Current: %d\n", cur_array );
+      exit(1);
+   }
+   if( !gpu_root[cur_array].leaf )
+   {
+      for( int i = 0; i < 8; i++ )
+      {
+         checkTrees( gpu_root, cpu_root->children[i], gpu_root[cur_array].children[i], gpu_array );
+      }
+   }
+   else
+   {
+      for( int i = 0; i < cpu_root->SA.num; i++ )
+      {
+
+         if( !equals( cpu_root->SA.array[i], gpu_array.array[gpu_root[cur_array].children[0] + i ] ))
+         {
+            printf("Surfel\n");
+         }
+      }
+      for( int i = 0; i < 9; i++ )
+         //if( fabs(cpu_root->hermonics.area[i] - gpu_root[cur_array].hermonics.area[i]) > 0.001 )
+         if( cpu_root->hermonics.area[i] > 0.1 )
+            printf("Hermonics %f %f\n", cpu_root->hermonics.area[i], gpu_root[cur_array].hermonics.area[i] );
+   }
+}
+void testOctree(int argc, char *argv[] )
+{
+   char *filename = parseCommandLine(argc, argv);
+   std::string str(filename);
+
+   Scene scene = parseFile( str );
+
+   Ray *rays;
+
+   int number = createInitRays( &rays, width_of_image, height_of_image, 1.0, scene.camera );
+   int size = 0;
+
+   vec3 min;
+   vec3 max;
+   IntersectionArray IA = createIntersectionArray();
+
+   for( int i = 0; i < number; i++ )
+   {
+      collectIntersections( scene, rays[i], IA );
+   }
+   shrinkIA( IA );
+   SurfelArray SA = createSurfelArray( IA.num );
+   for( int i = 0; i < IA.num; i++ )
+   {
+      if( i == 0 )
+      {
+         min = IA.array[i].hitMark;
+         max = min;
+      }
+      addToSA( SA, intersectionToSurfel( IA.array[i], scene ) );
+      keepMin( min, IA.array[i].hitMark );
+      keepMax( max, IA.array[i].hitMark );
+   }
+   shrinkSA( SA );
+
+   CudaTree *gpu_root = NULL;
+   SurfelArray gpu_array;
+
+   int start1 = getTime();
+   createCudaTree( SA, min, max, gpu_root, gpu_array );
+   int stop1 = getTime();
+
+   int start = getTime();
+   TreeNode tree_root =createOctreeMark2( SA, min, max );
+   int stop = getTime();
+
+
+   printf("CPU Time: %f\n", getDiffTime( start, stop ));
+
+   printf("Rasterize Time: %f\n", getDiffTime( start1, stop1) );
+
+   TreeNode *cur_tree = &tree_root;
+   int cur_array = 0;
+
+   checkTrees( gpu_root, &tree_root, 0, gpu_array );
+
+   free( rays );
 }
 int main(int argc, char *argv[])
 {
    //octreeLightingTest( );
+   testOctree( argc, argv );
+   return 0;
    sceneLightingTest(argc, argv);
    return 0;
    vec3 ***cuberays = initCuberays();
@@ -827,103 +960,7 @@ int main(int argc, char *argv[])
    //rasterizeSurfelToCube( cube, surfel, cubetrans, cuberays, pos, normal );
    rasterizeClusterToCube( cube, c, area, surfel.pos, cubetrans, cuberays, pos, normal );
    displayRasterCube( cube );
-   return 0;
 
-   //raytraceSurfelToCube( cube, surfel, cuberays, pos, normal );
-   rasterizeSurfelToCube( cube, surfel, cubetrans, cuberays, pos, normal );
-
-   /*
-   //right
-   surfel.pos.x = 5;
-   surfel.pos.y = 2;
-   surfel.pos.z = 0;
-   surfel.normal.x = -1;
-   surfel.normal.y = 0;
-   surfel.normal.z = 0;
-   surfel.color.r =  0;
-   surfel.color.g =  1;
-   surfel.color.b =  0;
-   surfel.radius = 4;
-   surfel.distance = -dot( surfel.normal, surfel.pos );
-   //raytraceSurfelToCube( cube, surfel, cuberays, pos, normal );
-   rasterizeSurfelToCube( cube, surfel, cubetrans, cuberays, pos, normal );
-
-   //back
-   surfel.pos.x = 0;
-   surfel.pos.y = 2;
-   surfel.pos.z = -5;
-   surfel.normal.x = 0;
-   surfel.normal.y = 0;
-   surfel.normal.z = 1;
-   surfel.color.r =  0;
-   surfel.color.g =  0;
-   surfel.color.b =  1;
-   surfel.radius = 4;
-   surfel.distance = -dot( surfel.normal, surfel.pos );
-   //raytraceSurfelToCube( cube, surfel, cuberays, pos, normal );
-   rasterizeSurfelToCube( cube, surfel, cubetrans, cuberays, pos, normal );
-   //left
-   surfel.pos.x = -5;
-   surfel.pos.y = 2;
-   surfel.pos.z = 0;
-   surfel.normal.x = 1;
-   surfel.normal.y = 0;
-   surfel.normal.z = 0;
-   surfel.color.r =  1;
-   surfel.color.g =  0;
-   surfel.color.b =  1;
-   surfel.radius = 4;
-   surfel.distance = -dot( surfel.normal, surfel.pos );
-   //raytraceSurfelToCube( cube, surfel, cuberays, pos, normal );
-   rasterizeSurfelToCube( cube, surfel, cubetrans, cuberays, pos, normal );
-   //bottom
-   surfel.pos.x = 0;
-   surfel.pos.y = -5;
-   surfel.pos.z = 0;
-   surfel.normal.x = 0;
-   surfel.normal.y = 1;
-   surfel.normal.z = 0;
-   surfel.color.r =  1;
-   surfel.color.g =  1;
-   surfel.color.b =  0;
-   surfel.radius = 4;
-   surfel.distance = -dot( surfel.normal, surfel.pos );
-   //raytraceSurfelToCube( cube, surfel, cuberays, pos, normal );
-   rasterizeSurfelToCube( cube, surfel, cubetrans, cuberays, pos, normal );
-   //top
-   surfel.pos.x = 0;
-   surfel.pos.y = 5;
-   surfel.pos.z = 0;
-   surfel.normal.x = 0;
-   surfel.normal.y = -1;
-   surfel.normal.z = 0;
-   surfel.color.r =  1;
-   surfel.color.g =  1;
-   surfel.color.b =  1;
-   surfel.radius = 4;
-   surfel.distance = -dot( surfel.normal, surfel.pos );
-   //raytraceSurfelToCube( cube, surfel, cuberays, pos, normal );
-   rasterizeSurfelToCube( cube, surfel, cubetrans, cuberays, pos, normal );
-   color.r = 0;
-   color.g = 0;
-   color.b = 0;
-   float dis = 0;
-   int num = 0;
-   for( int i = 0; i <6; i++)
-      for( int j = 0; j<8; j++)
-         for( int k =0; k<8;k++)
-            if( cube.depth[i][j][k] < 101 && cube.depth[i][j][k] > 0 )
-            {
-               num++;
-               color.r += cube.sides[i][j][k].r;
-               color.g += cube.sides[i][j][k].g;
-               color.b += cube.sides[i][j][k].b;
-               dis += cube.depth[i][j][k];
-            }
-
-   printf("Color %f %f %f\n", color.r, color.g, color.b );
-   */
-
-      return EXIT_SUCCESS;
+   return EXIT_SUCCESS;
 }
 

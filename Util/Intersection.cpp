@@ -62,7 +62,9 @@ Color directIllumination( const Intersection &inter, const Scene &scene )
          ret.r+= inter.colorInfo.pigment.r * temp.color.r * nlDot*inter.colorInfo.finish_diffuse;
          ret.g += inter.colorInfo.pigment.g * temp.color.g * nlDot*inter.colorInfo.finish_diffuse;
          ret.b+= inter.colorInfo.pigment.b * temp.color.b * nlDot*inter.colorInfo.finish_diffuse;
-         ret = limitColor( ret );
+         ret.r = fmin( 1.0, fmax(ret.r, 0.0 ) );
+         ret.g = fmin( 1.0, fmax(ret.g, 0.0 ) );
+         ret.b = fmin( 1.0, fmax(ret.b, 0.0 ) );
       }
    }
    //1.5 not 1 to increase the directlight which will be balanced in Util/tga.cpp during gamma correction
@@ -125,7 +127,7 @@ void shrinkIA( IntersectionArray &in )
 }
 void addToIA( IntersectionArray &in, const Intersection &intersection )
 {
-   if( in.num +1 >=in.max )
+   if( in.num +1 >in.max )
    {
       growIA( in );
    }

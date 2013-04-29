@@ -14,48 +14,12 @@
 #define MAX_OCTREE_SIZE 1000
 
 int glob;
-int count( TreeNode *root );
-int buildOctreeArray( TreeNode *tree, ArrayNode *octree, int &cur, SurfelArray &SA );
-TreeNode createOctree( SurfelArray &SA, vec3 min, vec3 max )
-{
-   int num = SA.num;
-   TreeNode *root = (TreeNode *) malloc( sizeof(TreeNode) );
 
-   min.x -= .0001;
-   min.y -= .0001;
-   min.z -= .0001;
-   max.x += 0.0001;
-   max.y += 0.0001;
-   max.z += 0.0001;
-   min.x = fmax( min.x, -MAX_OCTREE_SIZE );
-   min.y = fmax( min.y, -MAX_OCTREE_SIZE );
-   min.z = fmax( min.z, -MAX_OCTREE_SIZE );
-   max.x = fmin( max.x, MAX_OCTREE_SIZE );
-   max.y = fmin( max.y, MAX_OCTREE_SIZE );
-   max.z = fmin( max.z, MAX_OCTREE_SIZE );
+extern "C" void gpuFilloutSphericalHermonics( CudaNode *root, int nodes, SurfelArray &SA, 
+            int *gpu_leaf_addrs, int leaf_nodes );
+extern "C" void gpuTestFirstPassSphericalHermonics( CudaNode *root, int nodes, SurfelArray &SA, 
+            int *gpu_leaf_addrs, int leaf_nodes );
 
-   root->box = createBoundingBox( min, max );
-   root->SA = SA;
-   printf("first %d\n", SA.num );
-   if( root->SA.num > 32 )
-   {
-      root->leaf = false;
-      BoundingBox *boxes = getSubBoxes( root->box );
-      for( int i = 0; i < 8; i++ )
-         root->children[i] = createTreeNode( root, boxes[i], 1 );
-      freeSurfelArray( SA );
-   }
-   else
-      root->leaf = true;
-   //printf("Octree finished %d\n", sizeof(Surfel) * SA.num);
-   int numberNodes = count( root );
-   printf("Octree constructed filling out SphericalHermonics for nodes\n");
-
-   filloutHermonics( root, num );
-
-   printf("Octree finished %d\n", numberNodes);
-   return *root;
-}
 void addToNode( TreeNode *root, const Surfel &surfel )
 {
    if( root->leaf && root->SA.num >= 31 )
@@ -67,6 +31,7 @@ void addToNode( TreeNode *root, const Surfel &surfel )
          root->children[i]->leaf = true;
          root->children[i]->SA = createSurfelArray( 33 );
          root->children[i]->box = boxes[i];
+         root->children[i]->numInNode = 0;
          clearHermonics( root->children[i]->hermonics );
       }
       free(boxes);
@@ -88,6 +53,7 @@ void addToNode( TreeNode *root, const Surfel &surfel )
    if( root->leaf )
    {
       addToSA( root->SA, surfel );
+      root->numInNode++;
    }
    else
    {
@@ -96,6 +62,7 @@ void addToNode( TreeNode *root, const Surfel &surfel )
          if( isIn( root->children[k]->box, surfel.pos ) )
          {
             addToNode( root->children[k], surfel );
+            root->numInNode++;
             return;
          }
       }
@@ -123,6 +90,7 @@ TreeNode createOctreeMark2( SurfelArray &SA, vec3 min, vec3 max )
    root->box = createBoundingBox( min, max );
    root->leaf = true;
    root->SA = createSurfelArray( 33 );
+   root->numInNode = 0;
    clearHermonics( root->hermonics );
 
    printf("Createing Octree\n");
@@ -138,7 +106,6 @@ TreeNode createOctreeMark2( SurfelArray &SA, vec3 min, vec3 max )
          lastPercent = curPercent;
       }
    }
-   freeSurfelArray( SA );
 
    printf("Percent Complete: 100   \r\n" );
    printf("Filling Out Hermonics: num: %d\n", SA.num);
@@ -147,194 +114,144 @@ TreeNode createOctreeMark2( SurfelArray &SA, vec3 min, vec3 max )
    printf("Percent Complete: 100   \n");
    return *root;
 }
-int count( TreeNode *root )
+int octreeToCudaTree( TreeNode *cpu_root, CudaTree* gpu_root, int current_node, SurfelArray &gpu_array )
 {
-   if( root == NULL )
+   gpu_root[current_node].leaf = cpu_root->leaf;
+   gpu_root[current_node].box = cpu_root->box;
+   if( cpu_root->leaf )
    {
-      printf("NULL\n");
-      return 0;
+      gpu_root[current_node].children[0] = gpu_array.num;
+      gpu_root[current_node].children[1] = gpu_array.num + cpu_root->SA.num;
+      for( int i =2; i < 8; i++ )
+         gpu_root[current_node].children[i] = -1;
+      for( int i = 0; i < cpu_root->SA.num; i++ )
+         addToSA( gpu_array, cpu_root->SA.array[i] );
+      return current_node+1;
    }
+   else
+   {
+      int child_node = current_node+1;
+      for( int i = 0; i < 8; i++ )
+      {
+         gpu_root[current_node].children[i] = child_node;
+         child_node = octreeToCudaTree( cpu_root->children[i], gpu_root, child_node, gpu_array );
+      }
+      return child_node;
+   }
+}
+void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaTree* &gpu_root,
+      SurfelArray &gpu_array )
+{
+   int total;
+   if( gpu_root != NULL )
+   {
+      printf("Improper use of createCudaTree\n");
+      exit(1);
+   }
+
+   int num = cpu_array.num;
+   TreeNode *cpu_root = (TreeNode *) malloc( sizeof(TreeNode) );
+
+   min.x -= .0001;
+   min.y -= .0001;
+   min.z -= .0001;
+   max.x += 0.0001;
+   max.y += 0.0001;
+   max.z += 0.0001;
+   min.x = fmax( min.x, -MAX_OCTREE_SIZE );
+   min.y = fmax( min.y, -MAX_OCTREE_SIZE );
+   min.z = fmax( min.z, -MAX_OCTREE_SIZE );
+   max.x = fmin( max.x, MAX_OCTREE_SIZE );
+   max.y = fmin( max.y, MAX_OCTREE_SIZE );
+   max.z = fmin( max.z, MAX_OCTREE_SIZE );
+
+   cpu_root->box = createBoundingBox( min, max );
+   cpu_root->leaf = true;
+   cpu_root->SA = createSurfelArray( 33 );
+   cpu_root->numInNode = 0;
+   //clearHermonics( cpu_root->hermonics );
+
+   printf("Createing Octree\n");
+   int curPercent = 0;
+   int lastPercent = 0;
+   for( int i =0; i < cpu_array.num; i++ )
+   {
+      if( isIn( cpu_root->box, cpu_array.array[i].pos ) )
+         addToNode( cpu_root, cpu_array.array[i] );
+      curPercent = (float)i / cpu_array.num * 100;
+      if( curPercent > lastPercent )
+      {
+         printf("Percent Complete: %d   \r", curPercent);
+         lastPercent = curPercent;
+      }
+   }
+   printf("Coverting to CudaTree\n");
+
+   int leaf_nodes = 0;
+   int *gpu_leaf_addr;
+   if( gpu_root == NULL )
+   {
+      leaf_nodes = countLeafNodes( cpu_root );
+      total = countNodes(cpu_root);
+      printf("Total: %d\n", total );
+      gpu_root = (CudaTree *)malloc( sizeof( CudaTree ) * total );
+      gpu_array = createSurfelArray( cpu_root->numInNode );
+      gpu_leaf_addr = (int *) malloc( sizeof( int ) * leaf_nodes );
+   }
+
+   octreeToCudaTree( cpu_root, gpu_root, 0, gpu_array );
+   int retLeafs = getLeafAddrs( gpu_root, 0, gpu_leaf_addr, 0 );
+   if(leaf_nodes != retLeafs )
+   {
+      printf("Mismatch leafs\n");
+      exit(1);
+   }
+
+   printf("...Complete\n");
+
+   printf("Generating Spherical Hermonics on GPU\n");
+   //gpuFilloutSphericalHermonics( gpu_root, total, gpu_array, gpu_leaf_addr, leaf_nodes );
+   gpuTestFirstPassSphericalHermonics( gpu_root, total, gpu_array, gpu_leaf_addr, leaf_nodes );
+   printf("...Complete\n");
+}
+int getLeafAddrs( CudaTree *gpu_root, int node, int *leaf_addrs, int current )
+{
+   if( gpu_root[node].leaf )
+   {
+      leaf_addrs[current] = node;
+      return current+1;
+   }
+   else
+   {
+      for( int i = 0; i < 8; i++ )
+         current = getLeafAddrs( gpu_root, gpu_root[node].children[i], leaf_addrs, current );
+      return current;
+   }
+}
+int countNodes( TreeNode *root )
+{
    if( root->leaf )
+      return 1;
+   else
    {
-      glob += root->SA.num;
-      if( root->SA.num )
-         return 1;
-      else
-         return 0;
+      int ret = 1;
+      for( int i = 0; i< 8; i++ )
+         ret += countNodes( root->children[i] );
+      return ret;
    }
+}
+int countLeafNodes( TreeNode *root )
+{
+   if( root->leaf )
+      return 1;
    else
    {
       int ret = 0;
-      for( int i = 0; i < 8; i++ )
-      {
-         ret += count( root->children[i] );
-      }
-      return ret + 1;
+      for( int i = 0; i< 8; i++ )
+         ret += countLeafNodes( root->children[i] );
+      return ret;
    }
 }
-ArrayNode *createOctreeForCuda( SurfelArray &SA, vec3 min, vec3 max, int &size )
-{
-   glob = 0;
-   TreeNode *root = (TreeNode *) malloc( sizeof(TreeNode) );
-
-   root->box = createBoundingBox( min, max );
-   root->SA = SA;
-   printf("first %d\n", SA.num );
-   if( root->SA.num > 32 )
-   {
-      root->leaf = false;
-      BoundingBox *boxes = getSubBoxes( root->box );
-      for( int i = 0; i < 8; i++ )
-         root->children[i] = createTreeNode( root, boxes[i], 1 );
-      free( boxes );
-   }
-   else
-      root->leaf = true;
-
-   int numberNodes = count( root );
-   shrinkSA(SA);
-
-   printf("Octree finished %d, %d, %d\n", glob, SA.num, numberNodes);
-
-   ArrayNode *octree = (ArrayNode *) malloc ( sizeof(ArrayNode) * numberNodes );
-   int cur = 0;
-   freeSurfelArray( SA );
-   SA = createSurfelArray();
-   buildOctreeArray( root, octree, cur, SA );
-   shrinkSA( SA );
-   size = numberNodes;
-   /*for( int i = 0; i < size; i++ )
-     {
-   //printf("Octree %d\n", i);
-   //printf("Leaf %d\n", octree[i].leaf );
-   for( int j = 0; j< 8; j++ )
-   //printf("\tChild: %d\n", octree[i].children[j] );
-   }
-    */
-   return octree;
-}
-int buildOctreeArray( TreeNode *tree, ArrayNode *octree, int &cur, SurfelArray &SA )
-{
-   int mySpot = cur;
-   ArrayNode temp;
-   temp.leaf = tree->leaf;
-   temp.box = tree->box;
-   if( temp.leaf )
-   {
-      if( tree->SA.num )
-      {
-         int adding = tree->SA.num;
-         temp.children[0] = SA.num;
-         temp.children[1] = SA.num+adding;
-         if( SA.num +adding > SA.max )
-         {
-            growSA( SA );
-         }
-         memcpy( &(SA.array[SA.num]), tree->SA.array, adding * sizeof(Surfel) );
-         SA.num += adding;
-         freeSurfelArray( tree->SA );
-         cur++;
-         octree[mySpot] = temp;
-         free( tree );
-         return mySpot;
-      }
-      else
-      {
-         free( tree );
-         return -1;
-      }
-   }
-   else
-   {
-      cur++;
-      for( int i = 0; i < 8; i++ )
-      {
-         temp.children[i] = buildOctreeArray( tree->children[i], octree, cur, SA );
-      }
-      octree[mySpot] = temp;
-      free( tree );
-      return mySpot;
-   }
-}
-TreeNode *createTreeNode( TreeNode *root, const BoundingBox &box, int depth )
-{
-   static int p = 0;
-   TreeNode *ret = (TreeNode *) malloc ( sizeof( TreeNode ) );
-   ret->hermonics = createHermonics();
-   ret->box = box;
-   ret->SA = createSurfelArray( root->SA.num );
-   for( int i = 0; i < root->SA.num; i++ )
-   {
-      if( isIn( ret->box, root->SA.array[i].pos ) )
-         addToSA( ret->SA, root->SA.array[i] );
-   }
-   shrinkSA( ret->SA );
-   if( ret->SA.num > 32 && depth < 15 )
-   {
-      ret->leaf = false;
-      BoundingBox *boxes = getSubBoxes( ret->box );
-      for( int i = 0; i < 8; i++ )
-         ret->children[i] = createTreeNode( ret, boxes[i], depth+1 );
-      freeSurfelArray( ret->SA );
-      free( boxes );
-   }
-   else
-   {
-      ret->leaf = true;
-      p += ret->SA.num;
-   }
-
-   return ret;
-}
-/*int factorial( int x)
-  {
-  int ret = 1;
-  for( int i = 1; i <= x; i++ )
-  ret *= i;
-  return ret;
-  }
-  double K(int l, int m)
-  {
-// renormalisation constant for SH function
-double temp = ((2.0*l+1.0)*factorial(l-m)) / (4.0*PI*factorial(l+m));
-return sqrt(temp);
-}
-double P(int l,int m,double x)
-{
-// evaluate an Associated Legendre Polynomial P(l,m,x) at x
-double pmm = 1.0;
-if(m>0) {
-double somx2 = sqrt((1.0-x)*(1.0+x));
-double fact = 1.0;
-for(int i=1; i<=m; i++) {
-pmm *= (-fact) * somx2;
-fact += 2.0;
-}
-}
-if(l==m) return pmm;
-double pmmp1 = x * (2.0*m+1.0) * pmm;
-if(l==m+1) return pmmp1;
-double pll = 0.0;
-for(int ll=m+2; ll<=l; ++ll) {
-pll = ( (2.0*ll-1.0)*x*pmmp1-(ll+m-1.0)*pmm ) / (ll-m);
-pmm = pmmp1;
-pmmp1 = pll;
-}
-return pll;
-}
-double SH(int l, int m, double theta, double phi)
-{
-// return a point sample of a Spherical Harmonic basis function
-// l is the band, range [0..N]
-// m in the range [-l..l]
-// theta in the range [0..Pi]
-// phi in the range [0..2*Pi]
-const double sqrt2 = sqrt(2.0);
-if(m==0) return K(l,0)*P(l,m,cos(theta));
-else if(m>0) return sqrt2*K(l,m)*cos(m*phi)*P(l,m,cos(theta));
-else return sqrt2*K(l,-m)*sin(-m*phi)*P(l,-m,cos(theta));
-}
- */
 Hermonics calculateSphericalHermonics( struct Surfel &surfel )
 {
    double red[9];

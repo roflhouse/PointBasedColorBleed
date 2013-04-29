@@ -9,7 +9,7 @@
 
 #ifndef SURFELTYPE_H
 #define SURFELTYPE_H
-#include "../Util/Color.h"
+#include "../Util/ColorType.h"
 #include "ObjectInfo.h"
 typedef struct Surfel {
    vec3 pos;

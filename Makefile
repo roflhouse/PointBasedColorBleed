@@ -3,11 +3,11 @@
 #  @author Nick Feeney
 CC=nvcc
 LD=nvcc
-CFLAGS=  -c -O3 
-CFLAGSCUDA= -c  -arch=sm_21 
-LDFLAGS= -O3 
+CFLAGS=  -c -g -G 
+CFLAGSCUDA= -c -g -G -arch=sm_21 
+LDFLAGS= -g -G 
 
-ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Color.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o Util/CudaRay.o 
+ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o  Util/CudaOctree.o
 
 all:	$(ALL) PBC 
 
@@ -17,10 +17,10 @@ PBC:	$(ALL) PBCMain.o
 PBCTest: $(ALL) test.o
 	$(CC) $(LDFLAGS) test.o $(ALL) -o PBCTest 
    
-test.o:	test.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Color.o Util/Ray.o Util/CudaRay.o 
+test.o:	test.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Ray.o  
 	$(CC) $(CFLAGS) -o $@ $<
 
-PBCMain.o:	PBCMain.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Color.o Util/Ray.o Util/CudaRay.o 
+PBCMain.o:	PBCMain.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h  Util/Ray.o  
 	$(CC) $(CFLAGS) -o $@ $<
 
 Util/Header.o:	Util/Header.cpp Util/Header.h
@@ -31,14 +31,14 @@ Util/BoundingBox.o:	Util/BoundingBox.cpp Util/BoundingBox.h Util/vec3.h
 
 Util/CudaRay.o:	Util/CudaRay.cu Util/CudaRay.h Util/vec3.h Objects/Surfel.h
 	$(CC) $(CFLAGSCUDA) -o $@ $<
+   
+Util/CudaOctree.o:	Util/CudaOctree.cu  Util/vec3.h Objects/SurfelType.h Util/OctreeType.h
+	$(CC) $(CFLAGSCUDA) -o $@ $<
 
 Util/Octree.o:	Util/Octree.cpp Objects/Surfel.h Util/vec3.h
 	$(CC) $(CFLAGS) -o $@ $<
 
-Util/Color.o:	Util/Color.cpp Util/Color.h
-	$(CC) $(CFLAGS) -o $@ $<
-
-Util/Intersection.o:	Util/Intersection.cpp Util/Intersection.h Util/Color.h Util/vec3.h
+Util/Intersection.o:	Util/Intersection.cpp Util/Intersection.h Util/ColorType.h Util/vec3.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 Util/vec3.o:	Util/vec3.cpp Util/vec3.h
@@ -68,10 +68,10 @@ Objects/Camera.o:	Objects/Camera.cpp Objects/Camera.h Util/vec3.h Util/Ray.h
 Objects/ObjectInfo.o:	Objects/ObjectInfo.cpp Objects/ObjectInfo.h Util/vec3.h  
 	$(CC) $(CFLAGS) -o $@ $<
 
-Util/Parser.o:	Util/Parser.cpp Util/Parser.h Objects/Objects.h Objects/Sphere.h Objects/Plane.h Objects/Camera.h Objects/LightSource.h Util/vec3.h Util/Color.h 
+Util/Parser.o:	Util/Parser.cpp Util/Parser.h Objects/Objects.h Objects/Sphere.h Objects/Plane.h Objects/Camera.h Objects/LightSource.h Util/vec3.h Util/ColorType.h 
 	$(CC) $(CFLAGS) -o $@ $<
 
-Util/Ray.o:	Util/Ray.cpp Util/Ray.h Objects/Objects.h Objects/Sphere.h Objects/Plane.h Objects/Camera.h Objects/LightSource.h Util/vec3.h Util/Color.h Util/BoundingBox.h
+Util/Ray.o:	Util/Ray.cpp Util/Ray.h Objects/Objects.h Objects/Sphere.h Objects/Plane.h Objects/Camera.h Objects/LightSource.h Util/vec3.h Util/ColorType.h Util/BoundingBox.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 clean:

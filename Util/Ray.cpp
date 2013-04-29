@@ -15,7 +15,7 @@
 
 #define PI 3.141592
 #define MAXDEPTH 15
-#define MAX_ANGLE 0.1
+#define MAX_ANGLE 0.03
 #define FAR_PLANE -100.0
 #define NEAR_PLANE -1.0
 #define RIGHT 1
@@ -219,33 +219,6 @@ void castRays( const TreeNode &tree, Ray *rays, int numRays, Color *buffer, int 
    printf("Percent Complete: 100     \n");
    tester( tree, (vec3 ***)cuberays, cubetrans );
 }
-ArrayNode *createSurfelsCuda( const Scene &scene, Ray *rays, int numRays, SurfelArray &SA, int &size )
-{
-   vec3 min;
-   vec3 max;
-   IntersectionArray IA = createIntersectionArray();
-
-   for( int i = 0; i < numRays; i++ )
-   {
-      collectIntersections( scene, rays[i], IA );
-   }
-   shrinkIA( IA );
-   for( int i = 0; i < IA.num; i++ )
-   {
-      if( i == 0 )
-      {
-         min = IA.array[i].hitMark;
-         max = min;
-      }
-      addToSA( SA, intersectionToSurfel( IA.array[i], scene ) );
-      keepMin( min, IA.array[i].hitMark );
-      keepMax( max, IA.array[i].hitMark );
-   }
-   freeIntersectionArray( IA );
-   shrinkSA( SA );
-
-   return createOctreeForCuda( SA, min, max, size );
-}
 TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
 {
    vec3 min;
@@ -271,7 +244,9 @@ TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
    }
    shrinkSA( SA );
 
-   return createOctreeMark2( SA, min, max );
+   TreeNode ret = createOctreeMark2( SA, min, max );
+   freeSurfelArray( SA );
+   return ret;
 }
 void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA )
 {
@@ -686,6 +661,7 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
 {
    const static glm::mat4 M = getViewPixelMatrix() * getOrthMatrix() * getProjectMatrix();
    const static glm::vec4 *wVecs = getWVecs();
+   /*
    printf("view-pixel\n");
    for( int e = 0; e < 4; e++ )
    {
@@ -714,6 +690,7 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
       printf("\n");
    }
    printf("eyeTrans\n");
+   */
    vec3 check = newDirection( nodePosition, position );
    check = unit(check);
    if( dot(check, normal) <= 0 )
@@ -723,6 +700,7 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
    eyeTrans[1][3] = -position.y;
    eyeTrans[2][3] = -position.z;
    eyeTrans = glm::transpose( eyeTrans );
+   /*
    for( int e = 0; e < 4; e++ )
    {
       for( int a = 0; a < 4; a++ )
@@ -731,6 +709,7 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
       }
       printf("\n");
    }
+   */
    float areas[6];
    glm::vec3 Snormal = glm::vec3(-check.x, -check.y, -check.z);
    /*vec3 tp = newDirection( nodePosition, position );
@@ -750,6 +729,7 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
       float length = sqrtf(areas[k]);
       glm::mat4 cur = M * cubetransforms[k] * eyeTrans;
 
+      /*
       printf("cubetransforms\n");
       for( int e = 0; e < 4; e++ )
       {
@@ -768,22 +748,27 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
          }
          printf("\n");
       }
+      */
       glm::vec4 *points = getAxisAlinedPoints( nodePosition, length/2.0, k );
+      /*
       for( int i = 0; i < 4; i++ )
          printf("Pre:%d, %d: %f %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2], points[i][3] );
+         */
       points[0] = cur * points[0];
       points[1] = cur * points[1];
       points[2] = cur * points[2];
       points[3] = cur * points[3];
+      /*
       for( int i = 0; i < 4; i++ )
          printf("mid:%d, %d: %f %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2], points[i][3] );
+         */
       for( int i = 0; i < 4; i++ )
       {
          points[i][0] /= points[i][3];
          points[i][1] /= points[i][3];
          points[i][2] /= points[i][3];
          points[i][3] = 1;
-         printf("post:%d, %d: %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2] );
+         //printf("post:%d, %d: %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2] );
       }
       int minX = 0;
       int minY = 0;
@@ -804,7 +789,7 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
          if( maxY < points[i][1] )
             maxY = roundf(points[i][1]+0.5);
       }
-      printf("min: %d %d, %d %d", minX, maxX, minY, maxY );
+      //printf("min: %d %d, %d %d", minX, maxX, minY, maxY );
       if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
       {
          if( minX < 0 )

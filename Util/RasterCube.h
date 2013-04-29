@@ -9,7 +9,7 @@
 
 #ifndef RASTERCUBE_H
 #define RASTERCUBE_H
-#include "Util/Color.h"
+#include "Util/ColorType.h"
 
 typedef struct RasterCube {
    Color sides[6][8][8];

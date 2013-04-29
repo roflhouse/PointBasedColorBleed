@@ -12,7 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "../Util/vec3.h"
-#include "../Util/Color.h"
+#include "../Util/ColorType.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

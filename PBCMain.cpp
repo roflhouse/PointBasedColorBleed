@@ -25,9 +25,10 @@
 #include <vector>
 //#include "Objects/Objects.h"
 #include "Objects/SurfelType.h"
+#include "Util/Ray.h"
 #include "Util/RayType.h"
 #include "Util/Tga.h"
-#include "Util/Color.h"
+#include "Util/ColorType.h"
 #include "Util/Octree.h"
 #include "Util/CudaRay.h"
 

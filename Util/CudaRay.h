@@ -10,7 +10,7 @@
 #ifndef CUDARAY_H
 #define CUDARAY_H
 #include "vec3.h"
-#include "Color.h"
+#include "ColorType.h"
 #include "../Objects/SurfelType.h"
 #include "RayType.h"
 

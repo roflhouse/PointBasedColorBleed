@@ -17,7 +17,7 @@
 #include <fstream>
 
 #include "Header.h"
-#include "Color.h"
+#include "ColorType.h"
 class Tga
 {
     public:

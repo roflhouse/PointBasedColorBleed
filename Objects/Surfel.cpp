@@ -41,9 +41,9 @@ float surfelHitTest( const Surfel &surfel, const Ray &ray )
 SurfelArray createSurfelArray( int num )
 {
    SurfelArray IA;
-   IA.array = (Surfel *) malloc( sizeof(Surfel) * num );
+   IA.array = (Surfel *) malloc( sizeof(Surfel) * num+1 );
    IA.num = 0;
-   IA.max = num;
+   IA.max = num+1;
    return IA;
 }
 void growSA( SurfelArray &in )
@@ -80,4 +80,14 @@ void freeSurfelArray( SurfelArray &array )
    if( array.array != NULL )
       free( array.array );
    array.array = NULL;
+}
+bool equals( Surfel &one, Surfel &two )
+{
+   if( fabs( one.pos.x - two.pos.x ) > 0.0001 )
+      return false;
+   if( fabs( one.pos.y - two.pos.y ) > 0.0001 )
+      return false;
+   if( fabs( one.pos.z - two.pos.z ) > 0.0001 )
+      return false;
+   return true;
 }

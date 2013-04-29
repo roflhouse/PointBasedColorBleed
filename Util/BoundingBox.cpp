@@ -216,3 +216,19 @@ float distanceToBox( const BoundingBox &box, vec3 &pos )
    close.z = fmax( close.z, box.min.z );
    return distance( close, pos );
 }
+bool equals( const BoundingBox &one, const BoundingBox &two )
+{
+   if( fabs(one.min.x - two.min.x) > 0.0001 )
+      return false;
+   if( fabs(one.min.y - two.min.y) > 0.0001 )
+      return false;
+   if( fabs(one.min.z - two.min.z) > 0.0001 )
+      return false;
+   if( fabs(one.max.x - two.max.x) > 0.0001 )
+      return false;
+   if( fabs(one.max.y - two.max.y) > 0.0001 )
+      return false;
+   if( fabs(one.max.z - two.max.z) > 0.0001 )
+      return false;
+   return true;
+}

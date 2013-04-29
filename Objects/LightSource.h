@@ -10,7 +10,7 @@
 #define LIGHTSOURCE_H
 #include <stdio.h>
 #include <stdlib.h>
-#include "../Util/Color.h"
+#include "../Util/ColorType.h"
 #include "../Util/vec3.h"
 
 typedef struct PointLight {
