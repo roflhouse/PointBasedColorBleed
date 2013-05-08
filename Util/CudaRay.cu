@@ -7,11 +7,10 @@
  *  @author Nick Feeney
  */
 
-#include "CudaRay.h"
 #include <stdio.h>
 #include "cutil.h"
 #include "Octree.h"
-#define MAXDEPTH 15
+#define MAX_DEPTH 30
 #define RADIUS 0.01
 #define CUDASAFECALL( call )  CUDA_SAFE_CALL( call )
 #define CUDAERRORCHECK() {                   \
@@ -22,208 +21,151 @@
    } }
 
 
-__global__ void cast( Surfel *s, int numS, Ray *rays, int numRays, Color *buffer, int width );
-__global__ void castTree( ArrayNode *tree, int size, Surfel *s, int numS,
-      Ray *rays, int numRays, Color *buffer, int width );
-__device__ Color raytrace( Surfel *s, int numS, Ray ray );
-__device__ float surfelHitTestCuda( Surfel s, Ray ray );
+__device__ float surfelHitTestCuda( Surfel s, Ray &ray );
 __device__ float dotCuda( vec3 one, vec3 two );
 __device__ float squareDistanceCuda( vec3 one, vec3 two );
 __device__ vec3 unitCuda(vec3 in);
 __device__ float magCuda(const vec3 &in);
-__device__ Color raytrace( struct ArrayNode *tree, int size, Surfel *s, Ray ray );
-__device__ Color limitColorCuda( Color color );
-__device__ bool testForHitCuda( BoundingBox boxIn, Ray ray );
+__device__ bool testForHitCuda( BoundingBox &boxIn, Ray &ray );
+__device__ Surfel gpu_raytrace( CudaNode *gpu_root, Surfel *gpu_array, Ray &ray );
 
-void castRaysCuda( const SurfelArray &s, Ray *rays, int numRays, Color *buffer, int width, int height )
+__global__ void kernel_CastRays( CudaNode *gpu_root, Surfel *gpu_array,
+      int surfels, Ray *gpu_rays, int num_rays, Surfel *output );
+
+extern "C" Surfel *gpuCastRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array,
+      Ray *rays, int num_rays )
 {
-   Surfel *d_s;
-   Ray *d_r;
-   Color *d_c;
-   CUDASAFECALL(cudaMalloc( (void **)&(d_s), sizeof(Surfel) * s.num ));
-   CUDASAFECALL(cudaMalloc( (void **)&(d_r), sizeof(Ray) * 10000 ));
-   CUDASAFECALL(cudaMalloc( (void **)&(d_c), sizeof(Color) * width * height ));
-   CUDASAFECALL(cudaMemcpy( d_s, s.array, sizeof(Surfel) * s.num, cudaMemcpyHostToDevice ));
+   printf("Surfels: %d, CudaNodes: %d, Rays: %d\n", cpu_array.num, nodes, num_rays );
+   float surfel_size = (float)(sizeof(Surfel) * cpu_array.num)/1048576.0;
+   float cn_size = (float)(sizeof(CudaNode) * nodes)/1048576.0;
+   float ray_size = (float)(sizeof(Ray) * num_rays)/1048576.0;
+   float output_size = (float)(sizeof(Surfel) * num_rays )/1048576.0;
+   printf("Sizes: Surfel %f CudaNodes %f Rays %f output: %f\n Total %f\n",
+         surfel_size, cn_size, ray_size, output_size,
+         surfel_size + cn_size + ray_size, output_size);
 
-   int x = numRays / 32;
-   if( numRays%32 )
-      x++;
+   CudaNode * d_root;
+   Surfel *d_surfels;
+   Ray *d_rays;
+   Surfel *d_output;
+   Surfel *cpu_output = (Surfel *)malloc( sizeof(Surfel)*num_rays );
 
-   dim3 dimBlock(32);
-   dim3 dimGrid( x );
-   int curRay = 10000;
-   int curser = 0;
-   while( numRays > 0 )
-   {
-      if ( curRay > numRays )
-         curRay = numRays;
+   CUDASAFECALL(cudaMalloc( (void **)&d_surfels, sizeof(Surfel) * cpu_array.num));
+   CUDASAFECALL(cudaMalloc( (void **)&d_root, sizeof(CudaNode) * nodes));
+   CUDASAFECALL(cudaMalloc( (void **)&d_rays, sizeof(Ray) * num_rays));
+   CUDASAFECALL(cudaMalloc( (void **)&d_output, sizeof(Surfel) * num_rays ));
 
-      CUDASAFECALL(cudaMemcpy( d_r, rays+curser, sizeof(Ray) * curRay, cudaMemcpyHostToDevice ));
-      cast<<<dimGrid, dimBlock>>>( d_s, s.num, d_r, curRay, d_c, width );
-      numRays -= curRay;
-      curser += curRay;
-   }
+   CUDASAFECALL(cudaMemcpy( d_surfels, cpu_array.array, sizeof(Surfel) * cpu_array.num,
+            cudaMemcpyHostToDevice));
+   CUDASAFECALL(cudaMemcpy( d_root, cpu_root, sizeof(CudaNode) * nodes,cudaMemcpyHostToDevice ));
+   CUDASAFECALL(cudaMemcpy( d_rays, rays, sizeof(Ray) * num_rays,cudaMemcpyHostToDevice ));
 
-   CUDASAFECALL(cudaMemcpy( buffer, d_c, sizeof(Color) * width * height, cudaMemcpyDeviceToHost ));
+   int num_blocks = ceilf( (float)num_rays / 32.0 );
+   dim3 dimBlock( 32 );
+   dim3 dimGrid( num_blocks );
 
-   cudaFree( d_c );
-   cudaFree( d_s );
-   cudaFree( d_r );
+   printf("GPU Casting Rays\n");
+   kernel_CastRays<<<dimGrid, dimBlock>>>( d_root, d_surfels, cpu_array.num, d_rays,
+         num_rays, d_output );
+   printf("Done GPU casting\n");
+   CUDAERRORCHECK();
+
+   CUDASAFECALL(cudaMemcpy( cpu_output, d_output, sizeof(Surfel) * num_rays,
+            cudaMemcpyDeviceToHost ));
+   cudaFree( d_output );
+   cudaFree( d_surfels );
+   cudaFree( d_root );
+   cudaFree( d_rays );
+
+   return cpu_output;
 }
-void castRaysCuda( const struct ArrayNode *tree, int size, const SurfelArray &s, Ray *rays, int numRays,
-      Color *buffer, int width, int height )
+
+__global__ void kernel_CastRays( CudaNode *gpu_root, Surfel *gpu_array,
+      int surfels, Ray *gpu_rays, int num_rays, Surfel *output )
 {
-   Surfel *d_s;
-   Ray *d_r;
-   Color *d_c;
-   ArrayNode *d_t;
-   printf("size %lu\n", sizeof(Surfel) * s.num + sizeof(ArrayNode) * size +
-         sizeof(Ray)* numRays + sizeof(Color) *width *height );// + sizeof(ArrayNode) * size );
-   CUDASAFECALL(cudaMalloc( (void **)&(d_s), sizeof(Surfel) * s.num ));
-   CUDASAFECALL(cudaMalloc( (void **)&(d_t), sizeof(ArrayNode) * size ) );
-   CUDASAFECALL(cudaMalloc( (void **)&(d_r), sizeof(Ray) * numRays ));
-   CUDASAFECALL(cudaMalloc( (void **)&(d_c), sizeof(Color) * width * height ));
+   int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-   CUDASAFECALL(cudaMemcpy( d_r, rays, sizeof(Ray) * numRays, cudaMemcpyHostToDevice ));
-   CUDASAFECALL(cudaMemcpy( d_s, s.array, sizeof(Surfel) * s.num, cudaMemcpyHostToDevice ));
-   CUDASAFECALL(cudaMemcpy( d_t, tree, sizeof(ArrayNode) * size, cudaMemcpyHostToDevice ) );
-
-   int x = sqrt( numRays /32 ) ;
-   if( x < sqrt( numRays /32 ) )
-      x++;
-
-   dim3 dimBlock(32);
-   dim3 dimGrid( x, x );
-   castTree<<<dimGrid, dimBlock>>>( d_t, size, d_s, s.num, d_r, numRays, d_c, width );
-
-   CUDASAFECALL(cudaMemcpy( buffer, d_c, sizeof(Color) * width * height, cudaMemcpyDeviceToHost ));
-
-   cudaFree( d_c );
-   cudaFree( d_s );
-   cudaFree( d_r );
-}
-__global__ void castTree( ArrayNode *tree, int size, Surfel *s, int numS, Ray *rays, int numRays,
-      Color *buffer, int width )
-{
-   int x = threadIdx.x + blockIdx.x * blockDim.x;
-   int y = blockIdx.y * gridDim.x;
-   int index = y * blockDim.x + x;
-   //int y = blockIdx.y * gridDim.y + threadIdx.y;
-   if( index >= numRays )
+   if( index >= num_rays )
       return;
+   Ray ray = gpu_rays[index];
 
-   Ray ray = rays[index];
-   buffer[ray.i*width + ray.j] = raytrace( tree, size, s, ray );
+   Surfel ret = gpu_raytrace( gpu_root, gpu_array, ray );
+
+   output[index] = ret;
 }
-__device__ Color raytrace( struct ArrayNode *tree, int size, Surfel *s, Ray ray )
+__device__ Surfel gpu_raytrace( CudaNode *gpu_root, Surfel *gpu_array, Ray &ray )
 {
-   Color color;
-   color.r = 0;
-   color.b = 0;
-   color.g = 0;
-
+   int stack[MAX_DEPTH*8+2];
    bool hit = false;
-   float bestT = 10000;
    float t = 0;
+   float bestT = 100000;
+   Surfel bestSurfel;
+   int stack_current = 1;
+   CudaNode cached;
 
-   int stack[MAXDEPTH*8+2];
-   int curser = 1;
+   //push root on stack;
    stack[0] = 0;
-   while( curser ){
-      curser--;
-      int now = stack[curser];
-      //printf("Doing %d\n", now );
-      if( testForHitCuda( tree[now].box, ray ) )
+   while( stack_current )
+   {
+      stack_current--;
+
+      cached = gpu_root[stack[stack_current]];
+      if( testForHitCuda( cached.box, ray ) )
       {
-         if( tree[now].leaf )
+         if( cached.leaf )
          {
-            for( int j = tree[now].children[0]; j < tree[now].children[1]; j++ )
+            for( int i = cached.children[0]; i < cached.children[1]; i++ )
             {
-               t = surfelHitTestCuda( s[j], ray );
-               if( t > 0 )
+               t = surfelHitTestCuda( gpu_array[i], ray );
+               if( (t > 0 && t < bestT) || (hit == false && t > 0) )
                {
-                  if( !hit || t < bestT )
-                  {
-                     color = s[j].color;
-                     bestT = t;
-                     hit = true;
-                  }
+                  bestT = t;
+                  bestSurfel = gpu_array[i];
+                  hit = true;
                }
             }
          }
          else
          {
-            for( int i = 7; i >= 0; i-- )
+            for( int i = 0; i < 8; i++ )
             {
-               if( tree[now].children[i] > 0 )
-               {
-                  stack[curser] = tree[now].children[i];
-                  //printf("Push %d\n", stack[curser]);
-                  if( curser > MAXDEPTH*8 )
-                     printf("FUCK\n");
-                  curser++;
+               if( cached.children[i] > 0 ){
+                  stack[stack_current] = cached.children[i];
+                  stack_current++;
                }
             }
          }
       }
    }
-
-   return color;
-}
-
-__global__ void cast( Surfel *s, int numS, Ray *rays, int numRays, Color *buffer, int width )
-{
-   int x = blockIdx.x * blockDim.x + threadIdx.x;
-   //int y = blockIdx.y * gridDim.y + threadIdx.y;
-   if( x >= numRays )
-      return;
-
-   Ray ray = rays[x];
-   buffer[ray.i*width + ray.j] = raytrace( s, numS, ray );
-}
-
-__device__ Color raytrace( Surfel *s, int numS, Ray ray )
-{
-   Color color;
-   color.r = 0;
-   color.g = 0;
-   color.b = 0;
-
-   bool hit = false;
-   float bestT = 10000;
-   float t;
-   for( int j = 0; j < numS; j++ )
+   if( hit )
    {
-      t = surfelHitTestCuda( s[j], ray );
-      if( t > 0 )
-      {
-         if( !hit || t < bestT )
-         {
-            color = s[j].color;
-            bestT = t;
-            hit = true;
-         }
-      }
+      vec3 hitMark;
+      hitMark.x = ray.dir.x * bestT + ray.pos.x;
+      hitMark.y = ray.dir.y * bestT + ray.pos.y;
+      hitMark.z = ray.dir.z * bestT + ray.pos.z;
+      bestSurfel.pos = hitMark;
+      bestSurfel.radius = 1;
    }
-   return limitColorCuda( color );
+   else
+   {
+      bestSurfel.radius = -1;
+   }
+   return bestSurfel;
 }
-__device__ float surfelHitTestCuda( Surfel s, Ray ray )
+__device__ float surfelHitTestCuda( Surfel s, Ray &ray )
 {
    vec3 direction = unitCuda(ray.dir);
    vec3 position;
    vec3 normal = unitCuda(s.normal);
 
-   direction.x = direction.x;
-   direction.y = direction.y;
-   direction.z = direction.z;
    position.x = ray.pos.x;
    position.y = ray.pos.y;
    position.z = ray.pos.z;
 
    float vd = dotCuda(normal, direction);
-   if( vd < 0.001 && vd > -0.001 )
+   if( vd > 0.001)
       return -1;
-   float v0 = -(dotCuda(position, normal) - s.distance );
+   float v0 = -(dotCuda(position, normal) + s.distance );
    float t = v0/vd;
    if( t < 0.01)
       return -1;
@@ -268,33 +210,7 @@ __device__ float magCuda(const vec3 &in)
 {
    return sqrt(in.x*in.x + in.y*in.y + in.z*in.z);
 }
-__device__ Color limitColorCuda( Color in )
-{
-   Color ret;
-   if( in.r > 1.0 )
-      ret.r = 1.0;
-   else if( in.r < 0.0 )
-      ret.r = 0;
-   else
-      ret.r = in.r;
-
-   if( in.g > 1.0 )
-      ret.g = 1.0;
-   else if( in.g < 0.0 )
-      ret.g = 0;
-   else
-      ret.g = in.g;
-
-   if( in.b > 1.0 )
-      ret.b = 1.0;
-   else if( in.b < 0.0 )
-      ret.b = 0;
-   else
-      ret.b = in.b;
-
-   return ret;
-}
-__device__ bool testForHitCuda( BoundingBox boxIn, Ray ray )
+__device__ bool testForHitCuda( BoundingBox &boxIn, Ray &ray )
 {
    vec3 min = boxIn.min;
    min.x -= RADIUS;
@@ -305,9 +221,10 @@ __device__ bool testForHitCuda( BoundingBox boxIn, Ray ray )
    max.x += RADIUS;
    max.y += RADIUS;
    max.z += RADIUS;
-   BoundingBox box ;
+   BoundingBox box;
    box.min = min;
    box.max = max;
+
    if( ray.dir.x > -0.0001 && ray.dir.x < 0.0001 )
    {
       if( ray.pos.x < box.min.x || ray.pos.x > box.max.x )

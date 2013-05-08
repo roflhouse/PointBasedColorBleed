@@ -10,8 +10,8 @@
 #include "Octree.h"
 #define PI 3.14159265359
 #define MONTE_CARLO_N 256
-#define MAX_DEPTH  20
-#define MAX_OCTREE_SIZE 1000
+#define MAX_DEPTH  30
+#define MAX_OCTREE_SIZE 10
 
 int glob;
 
@@ -20,9 +20,9 @@ extern "C" void gpuFilloutSphericalHermonics( CudaNode *root, int nodes, SurfelA
 extern "C" void gpuTestFirstPassSphericalHermonics( CudaNode *root, int nodes, SurfelArray &SA, 
             int *gpu_leaf_addrs, int leaf_nodes );
 
-void addToNode( TreeNode *root, const Surfel &surfel )
+void addToNode( TreeNode *root, const Surfel &surfel, int depth )
 {
-   if( root->leaf && root->SA.num >= 31 )
+   if( root->leaf && root->SA.num >= 31 && depth < MAX_DEPTH )
    {
       BoundingBox *boxes = getSubBoxes( root->box );
       for( int i = 0; i < 8; i++ )
@@ -42,7 +42,7 @@ void addToNode( TreeNode *root, const Surfel &surfel )
          {
             if( isIn( root->children[k]->box, root->SA.array[i].pos ) )
             {
-               addToNode( root->children[k], root->SA.array[i] );
+               addToNode( root->children[k], root->SA.array[i], depth+1 );
                break;
             }
          }
@@ -61,7 +61,7 @@ void addToNode( TreeNode *root, const Surfel &surfel )
       {
          if( isIn( root->children[k]->box, surfel.pos ) )
          {
-            addToNode( root->children[k], surfel );
+            addToNode( root->children[k], surfel, depth+1 );
             root->numInNode++;
             return;
          }
@@ -73,12 +73,12 @@ TreeNode createOctreeMark2( SurfelArray &SA, vec3 min, vec3 max )
    int num = SA.num;
    TreeNode *root = (TreeNode *) malloc( sizeof(TreeNode) );
 
-   min.x -= .0001;
-   min.y -= .0001;
-   min.z -= .0001;
-   max.x += 0.0001;
-   max.y += 0.0001;
-   max.z += 0.0001;
+   min.x -= .00001;
+   min.y -= .00001;
+   min.z -= .00001;
+   max.x += 0.00001;
+   max.y += 0.00001;
+   max.z += 0.00001;
    min.x = fmax( min.x, -MAX_OCTREE_SIZE );
    min.y = fmax( min.y, -MAX_OCTREE_SIZE );
    min.z = fmax( min.z, -MAX_OCTREE_SIZE );
@@ -98,7 +98,7 @@ TreeNode createOctreeMark2( SurfelArray &SA, vec3 min, vec3 max )
    int lastPercent = 0;
    for( int i =0; i < SA.num; i++ )
    {
-      addToNode( root, SA.array[i] );
+      addToNode( root, SA.array[i], 0 );
       curPercent = (float)i / SA.num * 100;
       if( curPercent > lastPercent )
       {
@@ -114,7 +114,8 @@ TreeNode createOctreeMark2( SurfelArray &SA, vec3 min, vec3 max )
    printf("Percent Complete: 100   \n");
    return *root;
 }
-int octreeToCudaTree( TreeNode *cpu_root, CudaTree* gpu_root, int current_node, SurfelArray &gpu_array )
+int octreeToCudaTree( TreeNode *cpu_root, CudaNode* gpu_root, int current_node,
+      SurfelArray &gpu_array )
 {
    gpu_root[current_node].leaf = cpu_root->leaf;
    gpu_root[current_node].box = cpu_root->box;
@@ -139,7 +140,7 @@ int octreeToCudaTree( TreeNode *cpu_root, CudaTree* gpu_root, int current_node, 
       return child_node;
    }
 }
-void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaTree* &gpu_root,
+void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaNode* &gpu_root, int &nodes,
       SurfelArray &gpu_array )
 {
    int total;
@@ -152,12 +153,12 @@ void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaTree* &gpu_r
    int num = cpu_array.num;
    TreeNode *cpu_root = (TreeNode *) malloc( sizeof(TreeNode) );
 
-   min.x -= .0001;
-   min.y -= .0001;
-   min.z -= .0001;
-   max.x += 0.0001;
-   max.y += 0.0001;
-   max.z += 0.0001;
+   min.x -= 0.00001;
+   min.y -= 0.00001;
+   min.z -= 0.00001;
+   max.x += 0.00001;
+   max.y += 0.00001;
+   max.z += 0.00001;
    min.x = fmax( min.x, -MAX_OCTREE_SIZE );
    min.y = fmax( min.y, -MAX_OCTREE_SIZE );
    min.z = fmax( min.z, -MAX_OCTREE_SIZE );
@@ -177,7 +178,7 @@ void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaTree* &gpu_r
    for( int i =0; i < cpu_array.num; i++ )
    {
       if( isIn( cpu_root->box, cpu_array.array[i].pos ) )
-         addToNode( cpu_root, cpu_array.array[i] );
+         addToNode( cpu_root, cpu_array.array[i], 0 );
       curPercent = (float)i / cpu_array.num * 100;
       if( curPercent > lastPercent )
       {
@@ -193,8 +194,8 @@ void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaTree* &gpu_r
    {
       leaf_nodes = countLeafNodes( cpu_root );
       total = countNodes(cpu_root);
-      printf("Total: %d\n", total );
-      gpu_root = (CudaTree *)malloc( sizeof( CudaTree ) * total );
+      nodes = total;
+      gpu_root = (CudaNode *)malloc( sizeof( CudaNode ) * total );
       gpu_array = createSurfelArray( cpu_root->numInNode );
       gpu_leaf_addr = (int *) malloc( sizeof( int ) * leaf_nodes );
    }
@@ -214,7 +215,7 @@ void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaTree* &gpu_r
    gpuTestFirstPassSphericalHermonics( gpu_root, total, gpu_array, gpu_leaf_addr, leaf_nodes );
    printf("...Complete\n");
 }
-int getLeafAddrs( CudaTree *gpu_root, int node, int *leaf_addrs, int current )
+int getLeafAddrs( CudaNode *gpu_root, int node, int *leaf_addrs, int current )
 {
    if( gpu_root[node].leaf )
    {

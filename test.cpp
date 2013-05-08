@@ -186,12 +186,12 @@ double *hermonicsTest( Surfel s )
    return result;
 }
 
-void displayRasterCube( RasterCube &cube )
+void displayRasterCube2( RasterCube &cube, int n )
 {
    for( int i = 0; i < 6; i++ )
    {
       std::stringstream s;
-      s << "Output/side-" << i << ".tga";
+      s << "Output/side-" << n << "-" << i << ".tga";
 
       printf("%s\n",s.str().c_str());
       Tga outfile( 8, 8 );
@@ -555,8 +555,8 @@ void sphereLightingTest( )
 }
 void octreeLightingTest( )
 {
-   int width = 200;
-   int height = 200;
+   int width = 1024;
+   int height = 1024;
    Ray *rays;
    Sphere sphere;
    sphere.radius = 1;
@@ -574,7 +574,7 @@ void octreeLightingTest( )
    p.color.b = 1;
    p.pos.x = 100;
    p.pos.y = 0;
-   p.pos.z = -25;
+   p.pos.z = 0;
 
    Scene scene;
    scene.spheres = &sphere;
@@ -633,12 +633,21 @@ void octreeLightingTest( )
    //sphereLightingTest( SA.array, SA.num );
 
    printf("Octree\n");
-   TreeNode root = createOctreeMark2( SA, min, max );
-   Hermonics her = root.children[0]->hermonics;
-   addHermonics( her, root.children[7]->hermonics );
-   addHermonics( her, root.children[2]->hermonics );
-   addHermonics( her, root.children[4]->hermonics );
-   addHermonics( her, root.children[6]->hermonics );
+   CudaNode *gpu_root = NULL;
+   SurfelArray gpu_array;
+
+   int nodes = 0;
+   createCudaTree( SA, min, max, gpu_root, nodes, gpu_array );
+   //TreeNode root = createOctreeMark2( SA, min, max );
+   /*
+      Hermonics her = root.children[0]->hermonics;
+      addHermonics( her, root.children[7]->hermonics );
+      addHermonics( her, root.children[2]->hermonics );
+      addHermonics( her, root.children[4]->hermonics );
+      addHermonics( her, root.children[6]->hermonics );
+    */
+
+   Hermonics her = gpu_root[0].hermonics;
 
    printf("Lighting Test\n");
    sphereLightingTest( her );
@@ -696,12 +705,15 @@ void sceneLightingTest(int argc, char *argv[])
 
    Ray *rays;
 
-   int number = createInitRays( &rays, width_of_image, height_of_image, 1.0, scene.camera );
+   int number = createInitRays( &rays, 1024, 1024, 1.0, scene.camera );
    int size = 0;
 
-   SurfelArray SA = createSurfelArray();
+   //TreeNode surfels = createSurfelTree( scene, rays, number );
+   CudaNode *gpu_root = NULL;
+   SurfelArray gpu_array;
+   int nodes = 0;
 
-   TreeNode surfels = createSurfelTree( scene, rays, number );
+   createCudaSurfelTree( scene, rays, number, gpu_root, nodes, gpu_array );
    free( rays );
 
    number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
@@ -717,11 +729,45 @@ void sceneLightingTest(int argc, char *argv[])
    normal.x = 1;
    normal.y = 0;
    normal.z = 0;
+   vec3 pos;
+   pos.x = -3;
+   pos.y = -3;
+   pos.z = 0;
+   vec3 center;
+   center = newDirection(gpu_root[0].box.max, gpu_root[0].box.min);
+   center.x /= 2.0;
+   center.y /= 2.0;
+   center.z /= 2.0;
+   center.x += gpu_root[0].box.min.x;
+   center.y += gpu_root[0].box.min.y;
+   center.z += gpu_root[0].box.min.z;
+   vec3 centerToEye = newDirection( pos, center );
+   centerToEye = unit(centerToEye);
+
+   float area = testEval( gpu_root[0].hermonics, centerToEye );
+   Color c = testColorEval( gpu_root[0].hermonics, centerToEye );
+   printf("Color: %f %f %f\n", c.r, c.g, c.b );
+   printf("Area: %f\n", area );
+   printf("center: %f %f %f\n", center.x, center.y, center.z );
+   printf("min: %f %f %f, max %f %f %f\n", gpu_root[0].box.max.x, gpu_root[0].box.max.y,
+         gpu_root[0].box.max.z, gpu_root[0].box.min.x, gpu_root[0].box.min.y, gpu_root[0].box.min.z);
+
+   Surfel pretend[1];
+   pretend[0].normal.x = 1;
+   pretend[0].normal.y = 0;
+   pretend[0].normal.z = 0;
+   pretend[0].pos.x = -1;
+   pretend[0].pos.y = -3;
+   pretend[0].pos.z = 0;
+   pretend[0].radius = 1;
+   pretend[0].color.r = 0;
+   pretend[0].color.g = 1.0;
+   pretend[0].color.b = 0;
    for( int i = 0; i <6; i++)
       for( int j = 0; j<8; j++)
          for( int k =0; k<8;k++)
          {
-            float ndotr = dot(normal, cuberays[i][j][k]);
+            float ndotr = dot(pretend[0].normal, cuberays[i][j][k]);
             if( ndotr < 0.001 )
             {
                cube.sides[i][j][k] = color;
@@ -733,25 +779,9 @@ void sceneLightingTest(int argc, char *argv[])
             }
 
          }
-   vec3 pos;
-   pos.x = -3;
-   pos.y = -3;
-   pos.z = 0;
-   vec3 center;
-   center = newDirection(surfels.box.max, surfels.box.min);
-   center.x /= 2.0;
-   center.y /= 2.0;
-   center.z /= 2.0;
-   vec3 centerToEye = newDirection( pos, center );
-   centerToEye = unit(centerToEye);
-
-   float area = testEval( surfels.hermonics, centerToEye );
-   Color c = testColorEval( surfels.hermonics, centerToEye );
-   printf("Color: %f %f %f\n", c.r, c.g, c.b );
-   printf("Area: %f\n", area );
-
-   rasterizeClusterToCube( cube, c, area, getCenter(surfels.box), cubetrans, cuberays, pos, normal );
-   displayRasterCube( cube );
+   traverseOctreeCPU( cube, gpu_root, 0, gpu_array, 0.00, pretend[0].pos, pretend[0].normal,
+         cuberays, cubetrans );
+   displayRasterCube2( cube, 0 );
    int num = 0;
    color.r = 0;
    color.g = 0;
@@ -765,7 +795,7 @@ void sceneLightingTest(int argc, char *argv[])
             num++;
             if( cube.depth[i][j][k] < 100 +1 )
             {
-               float dotProd = dot( cuberays[i][j][k], normal );
+               float dotProd = dot( cuberays[i][j][k], pretend[0].normal );
                if(cube.sides[i][j][k].r > 0 )
                   color.r += cube.sides[i][j][k].r*dotProd;
                if(cube.sides[i][j][k].g > 0 )
@@ -781,13 +811,70 @@ void sceneLightingTest(int argc, char *argv[])
       color.g /= (float)num;
       color.b /= (float)num;
    }
-   printf("Calculated Point:( %f, %f, %f ): Color: (%f, %f, %f)\n", pos.x, pos.y, pos.z, color.r,
-         color.g, color.b );
+   printf("Calculated Point:( %f, %f, %f ): Color: (%f, %f, %f)\n", pretend[0].pos.x, pretend[0].pos.y, pretend[0].pos.z, color.r, color.g, color.b );
 
 
-   sphereLightingTest( surfels.hermonics );
+   printf("Change to other\n\n\n\n");
+   pretend[0].normal.x = 0;
+   pretend[0].normal.y = 1;
+   color.r = 0;
+   color.g = 0;
+   color.b = 0;
+   for( int i = 0; i <6; i++)
+      for( int j = 0; j<8; j++)
+         for( int k =0; k<8;k++)
+         {
+            float ndotr = dot(pretend[0].normal, cuberays[i][j][k]);
+            if( ndotr < 0.001 )
+            {
+               cube.sides[i][j][k] = color;
+               cube.depth[i][j][k] = -1;
+            }
+            else {
+               cube.sides[i][j][k] = color;
+               cube.depth[i][j][k] = 100+1;
+            }
+
+         }
+   traverseOctreeCPU( cube, gpu_root, 0, gpu_array, 0.00, pretend[0].pos, pretend[0].normal,
+         cuberays, cubetrans );
+   displayRasterCube2( cube, 1 );
+    num = 0;
+   color.r = 0;
+   color.g = 0;
+   color.b = 0;
+   for( int i = 0; i <6; i++)
+      for( int j = 0; j<8; j++)
+         for( int k =0; k<8;k++)
+         {
+            if( cube.depth[i][j][k] < 0 )
+               continue;
+            num++;
+            if( cube.depth[i][j][k] < 100 +1 )
+            {
+               float dotProd = dot( cuberays[i][j][k], pretend[0].normal );
+               if(cube.sides[i][j][k].r > 0 )
+                  color.r += cube.sides[i][j][k].r*dotProd;
+               if(cube.sides[i][j][k].g > 0 )
+                  color.g += cube.sides[i][j][k].g*dotProd;
+               if(cube.sides[i][j][k].b > 0 )
+                  color.b += cube.sides[i][j][k].b*dotProd;
+            }
+         }
+
+   if( num > 0 )
+   {
+      color.r /= (float)num;
+      color.g /= (float)num;
+      color.b /= (float)num;
+   }
+   printf("Calculated Point:( %f, %f, %f ): Color: (%f, %f, %f)\n", pretend[0].pos.x, pretend[0].pos.y, pretend[0].pos.z, color.r, color.g, color.b );
+
+
+   sphereLightingTest( gpu_root[0].hermonics );
 }
-void checkTrees( CudaTree *gpu_root, TreeNode *cpu_root, int cur_array, SurfelArray &gpu_array )
+int nu;
+void checkTrees( CudaNode *gpu_root, TreeNode *cpu_root, int cur_array, SurfelArray &gpu_array )
 {
    if( !equals(gpu_root[cur_array].box, cpu_root->box) )
    {
@@ -817,14 +904,29 @@ void checkTrees( CudaTree *gpu_root, TreeNode *cpu_root, int cur_array, SurfelAr
             printf("Surfel\n");
          }
       }
-      for( int i = 0; i < 9; i++ )
-         //if( fabs(cpu_root->hermonics.area[i] - gpu_root[cur_array].hermonics.area[i]) > 0.001 )
-         if( cpu_root->hermonics.area[i] > 0.1 )
-            printf("Hermonics %f %f\n", cpu_root->hermonics.area[i], gpu_root[cur_array].hermonics.area[i] );
+      /*for( int i = 0; i < 9; i++ )
+        if( fabs(cpu_root->hermonics.red[i] - gpu_root[cur_array].hermonics.red[i]) > 0.001 )
+        {
+        nu++;
+        for( int k = 0; k < 9; k++ )
+        {
+        printf("Hermonics %f %f\n", cpu_root->hermonics.red[k],
+        gpu_root[cur_array].hermonics.red[k] );
+        }
+        printf("current: %d, i: %d\n\n", cur_array, i );
+        break;
+        }
+       */
    }
 }
 void testOctree(int argc, char *argv[] )
 {
+   int num = 2048 * 2048;
+   float surfel_size = (float)(sizeof(Surfel) * num)/1048576.0;
+   float hermonics_size = (float)(sizeof(Hermonics) * num)/1048576.0;
+   printf("Sizes: Surfel %f Hermonics %f\n Total %f\n", surfel_size, hermonics_size,
+         surfel_size + hermonics_size);
+
    char *filename = parseCommandLine(argc, argv);
    std::string str(filename);
 
@@ -858,11 +960,12 @@ void testOctree(int argc, char *argv[] )
    }
    shrinkSA( SA );
 
-   CudaTree *gpu_root = NULL;
+   CudaNode *gpu_root = NULL;
    SurfelArray gpu_array;
+   int nodes = 0;
 
    int start1 = getTime();
-   createCudaTree( SA, min, max, gpu_root, gpu_array );
+   createCudaTree( SA, min, max, gpu_root, nodes, gpu_array );
    int stop1 = getTime();
 
    int start = getTime();
@@ -877,90 +980,14 @@ void testOctree(int argc, char *argv[] )
    TreeNode *cur_tree = &tree_root;
    int cur_array = 0;
 
+   nu = 0;
    checkTrees( gpu_root, &tree_root, 0, gpu_array );
+   printf("Diff: %d\n", nu);
 
    free( rays );
 }
 int main(int argc, char *argv[])
 {
-   //octreeLightingTest( );
-   testOctree( argc, argv );
-   return 0;
    sceneLightingTest(argc, argv);
-   return 0;
-   vec3 ***cuberays = initCuberays();
-   glm::mat4 *cubetrans;
-   initCubeTransforms( &cubetrans );
-   RasterCube cube;
-   Color color;
-   color.r = 0;
-   color.g = 0;
-   color.b = 0;
-   color.r = 1;
-
-   //front
-   vec3 pos;
-   pos.x = 0;
-   pos.y = 0;
-   pos.z = 0;
-
-   vec3 normal;
-   normal.x = 0;
-   normal.y = 0;
-   normal.z = -1;
-   normal = unit(normal);
-
-   Surfel surfel;
-   surfel.pos.x = 4;
-   surfel.pos.y = 0;
-   surfel.pos.z = 0;
-   surfel.normal.x = 1;
-   surfel.normal.y = 0;
-   surfel.normal.z = 0;
-   surfel.normal = unit(surfel.normal);
-   surfel.color = color;
-   surfel.radius = .56419;
-   surfel.distance = -dot( surfel.normal, surfel.pos );
-
-   sphereLightingTest( &surfel, 1 );
-   return 0;
-
-   color.r = 0;
-   for( int i = 0; i <6; i++)
-      for( int j = 0; j<8; j++)
-         for( int k =0; k<8;k++)
-         {
-            float ndotr = dot(normal, cuberays[i][j][k]);
-            if( ndotr < 0.001 )
-            {
-               cube.sides[i][j][k] = color;
-               cube.depth[i][j][k] = -1;
-            }
-            else {
-               cube.sides[i][j][k] = color;
-               cube.depth[i][j][k] = 100+1;
-            }
-
-         }
-   color.r = 1;
-   Hermonics her = calculateSphericalHermonics( surfel );
-   vec3 cen = newDirection( pos,surfel.pos );
-   cen = unit( cen );
-   double theta = acosf(cen.z);
-   double phi = atanf(cen.y/cen.x);
-
-   return 0;
-
-   printf("cen:%f %f %f\n", cen.x, cen.y, cen.z );
-   float area = testEval( her, cen );
-   Color c = testColorEval( her, cen );
-   printf("area: %f, %f %f %f, %f %f\n", area, c.r, c.g, c.b, theta, phi );
-   tester( surfel, theta, phi );
-   printf("act: %f\n", surfel.radius * surfel.radius *PI);
-   //rasterizeSurfelToCube( cube, surfel, cubetrans, cuberays, pos, normal );
-   rasterizeClusterToCube( cube, c, area, surfel.pos, cubetrans, cuberays, pos, normal );
-   displayRasterCube( cube );
-
-   return EXIT_SUCCESS;
 }
 

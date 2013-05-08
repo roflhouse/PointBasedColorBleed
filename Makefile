@@ -3,11 +3,11 @@
 #  @author Nick Feeney
 CC=nvcc
 LD=nvcc
-CFLAGS=  -c -g -G 
-CFLAGSCUDA= -c -g -G -arch=sm_21 
-LDFLAGS= -g -G 
+CFLAGS=  -c -O3 
+CFLAGSCUDA= -c -O3 -arch=sm_21 
+LDFLAGS= -g -O3 
 
-ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o  Util/CudaOctree.o
+ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o  Util/CudaOctree.o Util/CudaRay.o
 
 all:	$(ALL) PBC 
 
@@ -29,7 +29,7 @@ Util/Header.o:	Util/Header.cpp Util/Header.h
 Util/BoundingBox.o:	Util/BoundingBox.cpp Util/BoundingBox.h Util/vec3.h
 	$(CC) $(CFLAGS) -o $@ $<
 
-Util/CudaRay.o:	Util/CudaRay.cu Util/CudaRay.h Util/vec3.h Objects/Surfel.h
+Util/CudaRay.o:	Util/CudaRay.cu Util/vec3.h Objects/Surfel.h
 	$(CC) $(CFLAGSCUDA) -o $@ $<
    
 Util/CudaOctree.o:	Util/CudaOctree.cu  Util/vec3.h Objects/SurfelType.h Util/OctreeType.h

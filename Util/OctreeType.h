@@ -33,6 +33,6 @@ typedef struct CudaNode {
    struct BoundingBox box;
    int children[8];
    struct Hermonics hermonics;
-} CudaTree;
+} CudaNode;
 
 #endif

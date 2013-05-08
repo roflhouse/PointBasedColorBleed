@@ -25,12 +25,10 @@
 #define MAX_DEPTH  20
 #define MAX_OCTREE_SIZE 1000
 
-__device__ void getYLM( double x, double y, double z, double ret[] );
-__device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel &surfel );
+__device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel surfel );
 __device__ Hermonics gpuCreateHermonics();
 __device__ void gpuAddHermonics( Hermonics &save, Hermonics &gone );
 void cpuAddHermonics( Hermonics &save, Hermonics &gone );
-__device__ void gpuAverageHermonics( Hermonics &save, float factor );
 __global__ void fillLeafSphericalHermonics( CudaNode *d_root, int tree_total,
       Surfel *surfels, int surfel_total, int *d_leaf_addrs, int leaf_nodes );
 __global__ void kernel_FirstPassSphericalHermonics( Surfel *d_surfels, Hermonics *d_hermonics,
@@ -48,14 +46,12 @@ void checkCUDAError(const char *msg) {
       exit(EXIT_FAILURE);
    }
 }
-
-__device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel &surfel, int seed )
+__device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel surfel, int seed )
 {
    double red[9];
    double green[9];
    double blue[9];
    double areas[9];
-   Hermonics sh;
    for( int i = 0; i < 9; i++ )
    {
       red[i] = 0;
@@ -65,38 +61,63 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel &surfel, int 
    }
 
    double area = PI * surfel.radius * surfel.radius;
-   //curandState s;
-   //curand_init(10, 0, 0, &s);
+   curandState s;
+   curand_init(seed, 0, 0, &s);
 
    //Weighted Stocasically sample phi from 0 to 2pi
 
+   double TYlm[9];
+   double phi;
+   double theta;
+
+   double sin_theta;
+   double cos_theta;
+   double sin_phi;
+   double cos_phi;
+   double dx;
+   double dy;
+   double dz;
+   double tx,ty,tz;
+
+   double d_dot_n;
+   double x,y;
    //Sum
    for( int j = 0; j < MONTE_CARLO_N; j++ )
    {
       for( int i = 0; i < MONTE_CARLO_N; i++ )
       {
-         //double x = ((double)j + curand_uniform_double(&s) ) / MONTE_CARLO_N;
-         //double y = ((double)i + curand_uniform_double(&s)) / MONTE_CARLO_N;
-         double x = ((double)j + 0.1 ) / MONTE_CARLO_N;
-         double y = ((double)i + 0.1) / MONTE_CARLO_N;
+         x = ((double)j + curand_uniform_double(&s) ) / MONTE_CARLO_N;
+         y = ((double)i + curand_uniform_double(&s)) / MONTE_CARLO_N;
+         //x = ((double)j + 0.1 ) / MONTE_CARLO_N;
+         //y = ((double)i + 0.1) / MONTE_CARLO_N;
 
-         double phi = 2.0 * PI * y;
-         double theta = 2.0 * acos( sqrt( 1.0 - x ) );
+         phi = 2.0 * PI * y;
+         theta = 2.0 * acos( sqrt( 1.0 - x ) );
 
-         double sin_theta = sin(theta);
-         double cos_theta = cos(theta);
-         double sin_phi = sin(phi);
-         double cos_phi = cos(phi);
-         double dx = sin_theta*cos_phi;
-         double dy = sin_theta*sin_phi;
-         double dz = cos_theta;
+         sin_theta = sin(theta);
+         cos_theta = cos(theta);
+         sin_phi = sin(phi);
+         cos_phi = cos(phi);
+         dx = sin_theta*cos_phi;
+         dy = sin_theta*sin_phi;
+         dz = cos_theta;
 
-         double d_dot_n = dx * (double)surfel.normal.x;
+         d_dot_n = dx * (double)surfel.normal.x;
          d_dot_n += dy * (double)surfel.normal.y;
          d_dot_n += dz * (double)surfel.normal.z;
 
-         double TYlm[9];
-         getYLM( sin_theta * cos_phi, sin_theta* sin_phi, cos_theta, TYlm );
+         tx = sin_theta * cos_phi;
+         ty = sin_theta * sin_phi;
+         tz = cos_theta;
+         TYlm[0] = 0.282095; //0 0
+         TYlm[1] = .488603 * -ty;//1 -1
+         TYlm[2] = .488603 * tz;//1 0
+         TYlm[3] = .488603 * -tx; //1 1
+         TYlm[4] = 1.092548 * tx * ty; // 2 -2
+         TYlm[5] = 1.092548 * -ty * tz; //2 -1
+         TYlm[6] = 0.315392 * (3*tz*tz - 1); //2 0
+         TYlm[7] = 1.092548 * -tx * tz; //2 1
+         TYlm[8] = .546274 * (tx*tx - ty*ty); //2 2
 
          //now > 0
          if(d_dot_n > 0.0)
@@ -104,7 +125,7 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel &surfel, int 
             for( int k = 0; k < 9; k++ )
             {
                //Red
-               red[k] += ((double)surfel.color.r * (double)TYlm[k] * (double)area *(double)d_dot_n);
+               red[k] += surfel.color.r * TYlm[k] * area * d_dot_n;
                //Green
                green[k] += surfel.color.g * TYlm[k] * area * d_dot_n;
                //Blue
@@ -113,9 +134,17 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel &surfel, int 
                areas[k] += (area * d_dot_n * TYlm[k]);
             }
          }
-         free( TYlm );
       }
    }
+   double factor = ((4.0*PI)/((double)MONTE_CARLO_N*(double)MONTE_CARLO_N));
+   for( int j = 0; j < 9; j++ )
+   {
+      red[j] *= factor;
+      green[j] *= factor;
+      blue[j] *= factor;
+      areas[j] *= factor;
+   }
+   Hermonics sh;
    for( int i =0; i < 9; i++ )
    {
       sh.red[i] = red[i];
@@ -123,21 +152,7 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel &surfel, int 
       sh.blue[i] = blue[i];
       sh.area[i] = areas[i];
    }
-   //Average
-   gpuAverageHermonics( sh, ((4*PI)/((float)MONTE_CARLO_N*(float)MONTE_CARLO_N)));
    return sh;
-}
-__device__ void getYLM( double x, double y, double z, double ret[] )
-{
-   ret[0] = 0.282095; //0 0
-   ret[1] = .488603 * -y;//1 -1
-   ret[2] = .488603 * z;//1 0
-   ret[3] = .488603 * -x; //1 1
-   ret[4] = 1.092548 * x * y; // 2 -2
-   ret[5] = 1.092548 * -y * z; //2 -1
-   ret[6] = 0.315392 * (3*z*z - 1); //2 0
-   ret[7] = 1.092548 * -x * z; //2 1
-   ret[8] = .546274 * (x*x - y*y); //2 2
 }
 __device__ Hermonics gpuCreateHermonics()
 {
@@ -171,17 +186,6 @@ __device__ void gpuAddHermonics( Hermonics &save, Hermonics &gone )
       save.area[j] += gone.area[j];
    }
 }
-__device__ void gpuAverageHermonics( Hermonics &save, float factor )
-{
-   for( int j = 0; j < 9; j++ )
-   {
-      save.red[j] *= factor;
-      save.green[j] *= factor;
-      save.blue[j] *= factor;
-      save.area[j] *= factor;
-   }
-}
-
 __global__ void testGPU()
 {
    printf("test\n");
@@ -258,6 +262,10 @@ extern "C" void gpuTestFirstPassSphericalHermonics( CudaNode *root, int nodes, S
       int *leaf_addrs, int leaf_nodes )
 {
    printf("leaf_addrs: %d, Surfels: %d, CudaNodes: %d\n", leaf_nodes, SA.num, nodes );
+   float surfel_size = (float)(sizeof(Surfel) * SA.num)/1048576.0;
+   float hermonics_size = (float)(sizeof(Hermonics) * SA.num)/1048576.0;
+   printf("Sizes: Surfel %f Hermonics %f\n Total %f\n", surfel_size, hermonics_size,
+         surfel_size + hermonics_size);
    CudaNode *d_root;
    Surfel *d_surfels;
    Hermonics *d_hermonics;
@@ -276,21 +284,35 @@ extern "C" void gpuTestFirstPassSphericalHermonics( CudaNode *root, int nodes, S
    CUDASAFECALL(cudaMemcpy( d_surfels, SA.array, sizeof(Surfel) * SA.num,
             cudaMemcpyHostToDevice ));
 
-   printf("Starting GPU\n");
+   cudaEvent_t t0,t1;
+   cudaEventCreate(&t0);
+   cudaEventCreate(&t1);
+   cudaEventRecord( t0, 0 );
+   cudaDeviceSynchronize();
    for( int i = 0; i < batches; i++ )
    {
-      printf("%d / %d\n", i, batches );
       kernel_FirstPassSphericalHermonics<<<dimGrid, dimBlock>>>( d_surfels, d_hermonics, SA.num,
             i, batch_size );
    }
+
+   CUDAERRORCHECK();
+   cudaEventRecord( t1, 0 );
+   cudaEventSynchronize( t1 );
+   float elapsedTime;
+   cudaEventElapsedTime(&elapsedTime, t0, t1);
+   printf("Time for First Pass: %f\n", elapsedTime/1000 );
+   cudaEventDestroy( t1 );
+   cudaEventDestroy( t0 );
 
    CUDASAFECALL(cudaMemcpy( hermonics, d_hermonics, sizeof(Hermonics) * SA.num,
             cudaMemcpyDeviceToHost ));
    CUDASAFECALL(cudaFree( d_surfels));
    CUDASAFECALL(cudaFree( d_hermonics));
+   cudaDeviceSynchronize();
 
    printf("Starting CPU FILL\n");
    FillOutHermonicsFromArray( 0, root, hermonics );
+   free(hermonics);
    printf("Ending\n");
 }
 extern "C" void gpuTwoPassSphericalHermonics( CudaNode *root, int nodes, SurfelArray &SA,
@@ -302,9 +324,11 @@ extern "C" void gpuTwoPassSphericalHermonics( CudaNode *root, int nodes, SurfelA
    Hermonics *d_hermonics;
    int * d_leaf_addrs;
    int num_blocks = ceilf((float)SA.num / 32.0);
+   int batch_size = 50;
+   int batches = ceilf( (float)num_blocks/batch_size );
 
    dim3 dimBlock( 32 );
-   dim3 dimGrid( num_blocks );
+   dim3 dimGrid( batch_size );
 
    CUDASAFECALL(cudaMalloc( (void **)&d_surfels, sizeof(Surfel) * SA.num));
    CUDASAFECALL(cudaMalloc( (void **)&d_hermonics, sizeof(Hermonics) * SA.num));
@@ -312,7 +336,11 @@ extern "C" void gpuTwoPassSphericalHermonics( CudaNode *root, int nodes, SurfelA
    CUDASAFECALL(cudaMemcpy( d_surfels, SA.array, sizeof(Surfel) * SA.num,
             cudaMemcpyHostToDevice ));
 
-   //kernel_FirstPassSphericalHermonics<<<dimGrid, dimBlock>>>( d_surfels, d_hermonics, SA.num );
+   for( int i = 0; i < batches; i++ )
+   {
+      kernel_FirstPassSphericalHermonics<<<dimGrid, dimBlock>>>( d_surfels, d_hermonics, SA.num,
+            i, batch_size );
+   }
 
    CUDASAFECALL(cudaFree( d_surfels));
 

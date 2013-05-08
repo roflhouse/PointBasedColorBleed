@@ -29,12 +29,12 @@ void clearHermonics( Hermonics &hermonics );
 void addHermonics( Hermonics &save, Hermonics &gone );
 void averageHermonics( Hermonics &save, float factor );
 double SH(int l, int m, double theta, double phi);
-int octreeToCudaTree( TreeNode *cpu_root, CudaTree* gpu_root, int current_node, 
+int octreeToCudaTree( TreeNode *cpu_root, CudaNode* gpu_root, int current_node, 
       SurfelArray &gpu_array );
-void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaTree* &gpu_root,
+void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaNode* &gpu_root, int &nodes,
             SurfelArray &gpu_array );
 int countNodes( TreeNode *root );
 int countLeafNodes( TreeNode *root );
-int getLeafAddrs( CudaTree *gpu_root, int node, int *leaf_addrs, int current );
+int getLeafAddrs( CudaNode *gpu_root, int node, int *leaf_addrs, int current );
 
 #endif

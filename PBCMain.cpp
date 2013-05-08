@@ -45,13 +45,15 @@ int main(int argc, char *argv[])
 
    Ray *rays;
 
-   int number = createInitRays( &rays, width_of_image, height_of_image, 1.0, scene.camera );
+   int number = createInitRays( &rays, 1024, 1024, 1.0, scene.camera );
    int size = 0;
 
-   SurfelArray SA = createSurfelArray();
-   //ArrayNode *surfels = createSurfelsCuda( scene, rays, number, SA, size ); 
-   TreeNode surfels = createSurfelTree( scene, rays, number );
-   //SurfelArray surfels = createSurfels( scene, rays, number );
+   //TreeNode surfels = createSurfelTree( scene, rays, number );
+   CudaNode *cpu_root;
+   SurfelArray cpu_array;
+   int nodes = 0;
+
+   createCudaSurfelTree( scene, rays, number, cpu_root, nodes, cpu_array );
    free( rays );
 
    number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
@@ -59,20 +61,15 @@ int main(int argc, char *argv[])
    Tga outfile( width_of_image, height_of_image );
    Color *buffer = outfile.getBuffer();
 
-   //Scene s2 = createSurfelSpheres( scene, rays, number );
-   //castRaysCuda( surfels, size, SA, rays, number, buffer, width_of_image, height_of_image );
-   //castRays( surfels, size, SA, rays, number, buffer, width_of_image );
-   castRays( surfels, rays, number, buffer, width_of_image );
+   //castRays( surfels, rays, number, buffer, width_of_image );
+   printf("From Main: root %d, Array: %d\n", nodes, cpu_array.num );
+   castRays( cpu_root, nodes, cpu_array, rays, number, buffer, width_of_image );
 
    free( scene.spheres );
    free( scene.planes );
    free( scene.triangles );
    free( scene.pointLights );
-   //free( surfels );
    free( rays );
-   freeSurfelArray( SA );
-   //castRaysSphere( s2, rays, number, buffer, width_of_image );
-   //castRays( scene, rays, number, buffer, width_of_image );
 
    outfile.writeTga( "outfile.tga" );
    return EXIT_SUCCESS;

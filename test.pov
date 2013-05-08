@@ -15,7 +15,7 @@ sphere { <0, 0, 0>, 2
   finish {ambient 0.0 diffuse 0.8 specular 0.0 }
 }
 
-plane { <0,1,0>, -3
+plane { <0,1,0>, -2.4
    pigment { color rgb <0, 0.8, 0> }
    finish {ambient 0.0 diffuse 0.8 }
 }
