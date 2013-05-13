@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
    Ray *rays;
 
-   int number = createInitRays( &rays, 1024, 1024, 1.0, scene.camera );
+   int number = createInitRays( &rays, 1024+512, 1024+512, 1.0, scene.camera );
    int size = 0;
 
    //TreeNode surfels = createSurfelTree( scene, rays, number );

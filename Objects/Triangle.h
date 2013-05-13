@@ -14,7 +14,6 @@
 #include <stdlib.h>
 
 typedef struct Triangle {
-   float distance;
    vec3 a;
    vec3 b;
    vec3 c;

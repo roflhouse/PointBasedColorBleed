@@ -305,12 +305,14 @@ void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, 
                if( cube.depth[i][j][k] < -FAR_PLANE +1 )
                {
                   float dotProd = dot( cuberays[i][j][k], gpu_hits[h].normal );
+                  float atten = 1.0 / ( cube.depth[i][j][k] );
+                  atten = fmin( atten, 10 );
                   if(cube.sides[i][j][k].r > 0 )
-                     color.r += cube.sides[i][j][k].r*dotProd;
+                     color.r += cube.sides[i][j][k].r*dotProd*atten;
                   if(cube.sides[i][j][k].g > 0 )
-                     color.g += cube.sides[i][j][k].g*dotProd;
+                     color.g += cube.sides[i][j][k].g*dotProd*atten;
                   if(cube.sides[i][j][k].b > 0 )
-                     color.b += cube.sides[i][j][k].b*dotProd;
+                     color.b += cube.sides[i][j][k].b*dotProd*atten;
                }
             }
 
@@ -320,9 +322,11 @@ void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, 
          color.g /= (float)num;
          color.b /= (float)num;
       }
+      /*
       color.r += gpu_hits[h].color.r;
       color.g += gpu_hits[h].color.g;
       color.b += gpu_hits[h].color.b;
+      */
 
       color.r = fmin( color.r, 1.0 );
       color.r = fmax( color.r, 0.0 );
