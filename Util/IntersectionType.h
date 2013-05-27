@@ -17,6 +17,7 @@ typedef struct Intersection {
    vec3 viewVector;
    float hit;
    ColorInfo colorInfo;
+   float radius;
 } Intersection;
 
 typedef struct IntersectionArray {

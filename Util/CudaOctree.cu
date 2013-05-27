@@ -38,7 +38,14 @@ __global__ void kernel_SecondPassSphericalHermonics( CudaNode *d_root, int nodes
 extern "C" int getTime( );
 extern "C" float getDiffTime( int start, int end );
 void FillOutHermonicsFromArray( int current, CudaNode *root, Hermonics *hermonics );
-
+__device__ vec3 gpuUnit( vec3 in )
+{
+   float mag = sqrt(in.x*in.x + in.y *in.y + in.z*in.z);
+   in.x /= mag;
+   in.y /= mag;
+   in.z /= mag;
+   return in;
+}
 void checkCUDAError(const char *msg) {
    cudaError_t err = cudaGetLastError();
    if( cudaSuccess != err) {
@@ -61,6 +68,11 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel surfel, int s
    }
 
    double area = PI * surfel.radius * surfel.radius;
+   Color inColor;
+   inColor.r = fmin(surfel.color.r, (float)0.999);
+   inColor.g = fmin(surfel.color.g, (float)0.999);
+   inColor.b = fmin(surfel.color.b, (float)0.999);
+   surfel.normal = gpuUnit(surfel.normal);
    curandState s;
    curand_init(seed, 0, 0, &s);
 
@@ -81,15 +93,12 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel surfel, int s
 
    double d_dot_n;
    double x,y;
-   //Sum
    for( int j = 0; j < MONTE_CARLO_N; j++ )
    {
       for( int i = 0; i < MONTE_CARLO_N; i++ )
       {
          x = ((double)j + curand_uniform_double(&s) ) / MONTE_CARLO_N;
          y = ((double)i + curand_uniform_double(&s)) / MONTE_CARLO_N;
-         //x = ((double)j + 0.1 ) / MONTE_CARLO_N;
-         //y = ((double)i + 0.1) / MONTE_CARLO_N;
 
          phi = 2.0 * PI * y;
          theta = 2.0 * acos( sqrt( 1.0 - x ) );
@@ -120,21 +129,30 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel surfel, int s
          TYlm[8] = .546274 * (tx*tx - ty*ty); //2 2
 
          //now > 0
-         if(d_dot_n > 0.0)
+         if(d_dot_n > 0.001)
          {
             for( int k = 0; k < 9; k++ )
             {
+               double a = (area * d_dot_n * TYlm[k] * sin_theta);
+               /*
                //Red
-               red[k] += surfel.color.r * TYlm[k] * area * d_dot_n;
+               red[k] += (double)inColor.r * a;
                //Green
-               green[k] += surfel.color.g * TYlm[k] * area * d_dot_n;
+               green[k] += (double)inColor.g * a;
                //Blue
-               blue[k] += surfel.color.b  *TYlm[k] * area * d_dot_n;
+               blue[k] += (double)inColor.b * a;
                //area
-               areas[k] += (area * d_dot_n * TYlm[k]);
+               */
+               areas[k] += a;
             }
          }
       }
+   }
+   for( int k = 0; k < 9; k++ )
+   {
+      red[k] = areas[k] * inColor.r;
+      green[k] = areas[k] * inColor.g;
+      blue[k] = areas[k] * inColor.b;
    }
    double factor = ((4.0*PI)/((double)MONTE_CARLO_N*(double)MONTE_CARLO_N));
    for( int j = 0; j < 9; j++ )

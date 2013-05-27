@@ -8,14 +8,14 @@ camera {
 }
 
 
-light_source {<-10, 0, 0> color rgb <1, 1, 1>}
+light_source {<-7, 3, 0> color rgb <7, 7, 7>}
 
-sphere { <0, 0, 0>, 2
+sphere { <2, 0, -2>, 2
   pigment { color rgb <1.0, 0.0, 0.0>}
   finish {ambient 0.0 diffuse 0.8 specular 0.0 }
 }
 
 plane { <0,1,0>, -2
-   pigment { color rgb <0, 0.8, 0> }
+   pigment { color rgb <0, 1.0, 0> }
    finish {ambient 0.0 diffuse 0.8 }
 }

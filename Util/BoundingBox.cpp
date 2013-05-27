@@ -192,7 +192,7 @@ int belowHorizon( const BoundingBox &box, vec3 &position, vec3 &normal )
    for( int i = 0; i < 8; i++ )
    {
       vec3 temp = unit( newDirection( points[i], position ) );
-      if( dot( normal, temp ) <= 0 )
+      if( dot( normal, temp ) <= 0.01 )
          below++;
    }
    return below;

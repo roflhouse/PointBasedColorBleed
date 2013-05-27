@@ -5,7 +5,7 @@ CC=nvcc
 LD=nvcc
 CFLAGS=  -c -O3 
 CFLAGSCUDA= -c -O3 -arch=sm_21 
-LDFLAGS= -g -O3 
+LDFLAGS= -O3 
 
 ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o  Util/CudaOctree.o Util/CudaRay.o
 
@@ -16,6 +16,9 @@ PBC:	$(ALL) PBCMain.o
 
 PBCTest: $(ALL) test.o
 	$(CC) $(LDFLAGS) test.o $(ALL) -o PBCTest 
+
+SHTest: $(ALL) shtest.o
+	$(CC) $(LDFLAGS) shtest.o $(ALL) -o SHTest 
    
 test.o:	test.cpp Util/Header.h Util/Tga.h Objects/Sphere.h Objects/Objects.h Objects/Plane.h Util/vec3.h Objects/LightSource.h Objects/Camera.h Util/Parser.h Util/Ray.o  
 	$(CC) $(CFLAGS) -o $@ $<

@@ -43,7 +43,6 @@ struct SHSample {
    double *coeff;
 };
 
-
 int factorial( int x)
 {
    int ret = 1;
@@ -205,33 +204,6 @@ void displayRasterCube2( RasterCube &cube, int n )
       }
       outfile.writeTga( s.str().c_str() );
    }
-}
-void testRaster()
-{
-   glm::mat4 vp = getViewPixelMatrix();
-   glm::mat4 orth = getOrthMatrix();
-   glm::mat4 prot = getProjectMatrix();
-   glm::vec4 p = glm::vec4( -1+1, -1+1, 1+1, 1 );
-   glm::mat4 eyeTrans = glm::mat4(1.0);
-   glm::mat4 *cubetrans;
-   initCubeTransforms( &cubetrans );
-   eyeTrans[0][3] = -1;
-   eyeTrans[1][3] = -1;
-   eyeTrans[2][3] = -1;
-   glm::mat4 t = glm::mat4(1.0);
-
-   glm::mat4 M = vp * orth * prot * cubetrans[0] * glm::transpose(eyeTrans);
-
-   for( int i = 0; i < 4; i++ )
-   {
-      for( int j = 0; j < 4; j++ )
-         printf("%f ", M[i][j]);
-      printf("\n");
-   }
-   glm::vec4 kc = M * p;
-   kc /= kc[3];
-   printf("\n\n%f %f %f %f\n", kc[0], kc[1], kc[2], kc[3] );
-   printf("%f %f %f %f\n", p[0], p[1], p[2], p[3] );
 }
 float testEval( Hermonics hermonics, vec3 cen )
 {
@@ -705,7 +677,7 @@ void sceneLightingTest(int argc, char *argv[])
 
    Ray *rays;
 
-   int number = createInitRays( &rays, 1024, 1024, 1.0, scene.camera );
+   int number = createInitRays( &rays, 1024+512, 1024+512, 1.0, scene.camera );
    int size = 0;
 
    //TreeNode surfels = createSurfelTree( scene, rays, number );
@@ -716,6 +688,7 @@ void sceneLightingTest(int argc, char *argv[])
    createCudaSurfelTree( scene, rays, number, gpu_root, nodes, gpu_array );
    free( rays );
 
+   Color b;
    number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
    vec3 ***cuberays = initCuberays();
    glm::mat4 *cubetrans;

@@ -45,7 +45,8 @@ int main(int argc, char *argv[])
 
    Ray *rays;
 
-   int number = createInitRays( &rays, 1024+512, 1024+512, 1.0, scene.camera );
+   int samples = 256;
+   int number = createInitRays( &rays, samples, samples, 1.0, scene.camera );
    int size = 0;
 
    //TreeNode surfels = createSurfelTree( scene, rays, number );
@@ -53,7 +54,7 @@ int main(int argc, char *argv[])
    SurfelArray cpu_array;
    int nodes = 0;
 
-   createCudaSurfelTree( scene, rays, number, cpu_root, nodes, cpu_array );
+   createCudaSurfelTree( scene, rays, number, samples, cpu_root, nodes, cpu_array );
    free( rays );
 
    number = createDrawingRays( &rays, width_of_image, height_of_image, scene.camera );
@@ -63,7 +64,8 @@ int main(int argc, char *argv[])
 
    //castRays( surfels, rays, number, buffer, width_of_image );
    printf("From Main: root %d, Array: %d\n", nodes, cpu_array.num );
-   castRays( cpu_root, nodes, cpu_array, rays, number, buffer, width_of_image );
+   castRays( scene, cpu_root, nodes, cpu_array, rays, number, buffer, width_of_image );
+   //castRays( cpu_root, nodes, cpu_array, rays, number, buffer, width_of_image );
 
    free( scene.spheres );
    free( scene.planes );

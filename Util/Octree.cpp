@@ -10,8 +10,9 @@
 #include "Octree.h"
 #define PI 3.14159265359
 #define MONTE_CARLO_N 256
-#define MAX_DEPTH  30
-#define MAX_OCTREE_SIZE 10
+#define MAX_DEPTH  40
+#define MAX_OCTREE_SIZE 21
+#define NO_BLEED 0
 
 int glob;
 
@@ -212,6 +213,7 @@ void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaNode* &gpu_r
 
    printf("Generating Spherical Hermonics on GPU\n");
    //gpuFilloutSphericalHermonics( gpu_root, total, gpu_array, gpu_leaf_addr, leaf_nodes );
+   if( !NO_BLEED )
    gpuTestFirstPassSphericalHermonics( gpu_root, total, gpu_array, gpu_leaf_addr, leaf_nodes );
    printf("...Complete\n");
 }

@@ -55,6 +55,7 @@ Color directIllumination( const Intersection &inter, const Scene &scene )
             rvDot = 0;
          float n = 1.0/inter.colorInfo.finish_roughness;
          float powRV = pow( rvDot, n );
+         float atten = 1 / (lightDistance);
 
          ret.r = ret.r + temp.color.r * powRV*inter.colorInfo.finish_specular;
          ret.g = ret.g + temp.color.g* powRV*inter.colorInfo.finish_specular;
@@ -62,9 +63,9 @@ Color directIllumination( const Intersection &inter, const Scene &scene )
          ret.r+= inter.colorInfo.pigment.r * temp.color.r * nlDot*inter.colorInfo.finish_diffuse;
          ret.g += inter.colorInfo.pigment.g * temp.color.g * nlDot*inter.colorInfo.finish_diffuse;
          ret.b+= inter.colorInfo.pigment.b * temp.color.b * nlDot*inter.colorInfo.finish_diffuse;
-         ret.r = fmin( 1.0, fmax(ret.r, 0.0 ) );
-         ret.g = fmin( 1.0, fmax(ret.g, 0.0 ) );
-         ret.b = fmin( 1.0, fmax(ret.b, 0.0 ) );
+         ret.r = fmin( 1.0, fmax(ret.r*atten, 0.0 ) );
+         ret.g = fmin( 1.0, fmax(ret.g*atten, 0.0 ) );
+         ret.b = fmin( 1.0, fmax(ret.b*atten, 0.0 ) );
       }
    }
    //1.5 not 1 to increase the directlight which will be balanced in Util/tga.cpp during gamma correction
@@ -82,7 +83,9 @@ Surfel intersectionToSurfel( const Intersection &inter, const Scene &scene )
    surfel.distance = -dot( normal, inter.hitMark );
    surfel.normal = normal;
    surfel.color = directIllumination( inter, scene );
-   surfel.radius = .01;
+   //surfel.radius = 0.30;
+   surfel.radius = inter.radius;
+   //surfel.radius = 0.15;
    //surfel.info = inter.colorInfo;
    return surfel;
 }
@@ -107,7 +110,7 @@ IntersectionArray createIntersectionArray( int num )
 }
 void growIA( IntersectionArray &in )
 {
-   in.max = in.max * 5;
+   in.max = in.max * 5 +1;
    in.array = (Intersection *)realloc( in.array, sizeof(Intersection) * in.max );
    if( in.array == NULL )
    {
@@ -117,7 +120,7 @@ void growIA( IntersectionArray &in )
 }
 void shrinkIA( IntersectionArray &in )
 {
-   in.max = in.num;
+   in.max = in.num+1;
    in.array = (Intersection *)realloc( in.array, sizeof(Intersection) * in.max );
    if( in.array == NULL )
    {

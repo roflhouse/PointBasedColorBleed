@@ -16,18 +16,182 @@
 
 #define PI 3.141592
 #define MAXDEPTH 15
-#define MAX_ANGLE 0.03
+#define MAX_ANGLE 0.030
 #define FAR_PLANE -100.0
 #define NEAR_PLANE -1.0
-#define RIGHT 1
-#define LEFT -1
-#define TOP 1
-#define BOTTOM -1
+#define RIGHT 1.0
+#define LEFT -1.0
+#define TOP 1.0
+#define BOTTOM -1.0
 #define NPIXELS 8
+#define NO_BLEED 0
 
 void displayRasterCube( RasterCube &cube, int num );
 extern "C" Surfel *gpuCastRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array,
       Ray *rays, int num_rays );
+
+int createDrawingRaysTest( Ray **rays, int width, int height )
+{
+   float rightUnitX = 1;
+   float rightUnitY = 0;
+   float rightUnitZ = 0;
+   float upUnitX = 0;
+   float upUnitY = 1;
+   float upUnitZ = 0;
+   vec3 lookat;
+   lookat.x = 0;
+   lookat.y = 0;
+   lookat.z = 0;
+   vec3 pos;
+   pos.x =0;
+   pos.y =0;
+   pos.z = 3;
+   vec3 uv = unit( newDirection(lookat, pos) );
+
+   float l = -.5;
+   float r = .5;
+   float t = .5;
+   float b = -0.5;
+   *rays = (Ray *) malloc( sizeof(Ray) *height*width );
+   for( int i = 0; i < height; i++)
+   {
+      for( int j = 0; j < width ; j ++ )
+      {
+         float u = l + (r-l)*( (float)j)/(float)width;
+         float v = b + (t-b)*( (float)i)/(float)height;
+         float w = 1;
+         int c = i*width + j;
+
+         (*rays)[c].pos = pos;
+         (*rays)[c].dir.x = u * rightUnitX + v * upUnitX + w * uv.x;
+         (*rays)[c].dir.y = u * rightUnitY + v * upUnitY + w * uv.y;
+         (*rays)[c].dir.z = u * rightUnitZ + v * upUnitZ + w * uv.z;
+         (*rays)[c].dir = unit((*rays)[c].dir);
+         (*rays)[c].i = i;
+         (*rays)[c].j = j;
+      }
+   }
+   return width * height;
+}
+
+/*
+   void displaySphere( CudaNode node )
+   {
+   Ray *rays;
+
+   int width = 200;
+   int height = 200;
+   int number = createDrawingRaysTest( &rays, width, height );
+
+   Sphere sphere;
+   sphere.radius = 1;
+   sphere.pos.x = 0;
+   sphere.pos.y = 0;
+   sphere.pos.z = 0;
+   sphere.info.transforms = glm::mat4(1.0);
+   float actualArea = sphere.radius * sphere.radius * PI;
+
+   Tga outfile( width, height );
+   Color *buffer = outfile.getBuffer();
+   Tga outfileArea( width, height );
+   Color *bufferArea = outfileArea.getBuffer();
+
+   vec3 point;
+   point.x = -0.27;//-0.294717;
+   point.y = -0.859547;
+   point.z = 0.417517;
+   point = unit(point);
+   Color c = evaluateSphericalHermonicsPower( node, point );
+   float a = evaluateSphericalHermonicsArea( node, point );
+
+   printf("TestOut: %f %f %f, point %f %f %f, %f\n", c.r, c.g, c.b, point.x, point.y, point.z, a);
+   point.x = -0.28;//-0.294717;
+   point.y = -0.859547;
+   point.z = 0.417517;
+   point = unit(point);
+   c = evaluateSphericalHermonicsPower( node, point );
+   a = evaluateSphericalHermonicsArea( node, point );
+
+   printf("TestOut: %f %f %f, point %f %f %f, %f\n", c.r, c.g, c.b, point.x, point.y, point.z, a);
+   point.x = -0.29;//-0.294717;
+   point.y = -0.859547;
+   point.z = 0.417517;
+   point = unit(point);
+   c = evaluateSphericalHermonicsPower( node, point );
+   a = evaluateSphericalHermonicsArea( node, point );
+
+   printf("TestOut: %f %f %f, point %f %f %f, %f\n", c.r, c.g, c.b, point.x, point.y, point.z, a);
+   point.x = -0.30;//-0.294717;
+   point.y = -0.859547;
+   point.z = 0.417517;
+   point = unit(point);
+   c = evaluateSphericalHermonicsPower( node, point );
+   a = evaluateSphericalHermonicsArea( node, point );
+
+   printf("TestOut: %f %f %f, point %f %f %f, %f\n", c.r, c.g, c.b, point.x, point.y, point.z, a);
+   point.x = -0.31;//-0.294717;
+   point.y = -0.859547;
+   point.z = 0.417517;
+   point = unit(point);
+   c = evaluateSphericalHermonicsPower( node, point );
+   a = evaluateSphericalHermonicsArea( node, point );
+
+   printf("TestOut: %f %f %f, point %f %f %f, %f\n", c.r, c.g, c.b, point.x, point.y, point.z, a);
+   point.x = -0.32;//-0.294717;
+   point.y = -0.859547;
+   point.z = 0.417517;
+   point = unit(point);
+   c = evaluateSphericalHermonicsPower( node, point );
+   a = evaluateSphericalHermonicsArea( node, point );
+
+   printf("TestOut: %f %f %f, point %f %f %f, %f\n", c.r, c.g, c.b, point.x, point.y, point.z, a);
+point.x = -0.33;//-0.294717;
+point.y = -0.859547;
+point.z = 0.417517;
+point = unit(point);
+c = evaluateSphericalHermonicsPower( node, point );
+a = evaluateSphericalHermonicsArea( node, point );
+
+printf("TestOut: %f %f %f, point %f %f %f, %f\n", c.r, c.g, c.b, point.x, point.y, point.z, a);
+point.x = -0.34;//-0.294717;
+point.y = -0.859547;
+point.z = 0.417517;
+point = unit(point);
+c = evaluateSphericalHermonicsPower( node, point );
+a = evaluateSphericalHermonicsArea( node, point );
+
+printf("TestOut: %f %f %f, point %f %f %f, %f\n", c.r, c.g, c.b, point.x, point.y, point.z, a);
+for( int i = 0; i < number; i++ )
+{
+   float_2 hits = sphereHitTest( sphere, rays[i] );
+   float use = -1;
+
+   if ( hits.t0 > 0 )
+      use = hits.t0;
+   else if( hits.t1 > 0 )
+      use = hits.t1;
+   if( use > 0 )
+   {
+      vec3 hitmark;
+      hitmark.x = rays[i].pos.x + rays[i].dir.x * use;
+      hitmark.y = rays[i].pos.y + rays[i].dir.y * use;
+      hitmark.z = rays[i].pos.z + rays[i].dir.z * use;
+
+      buffer[rays[i].i*width + rays[i].j] = evaluateSphericalHermonicsPower( node,
+            hitmark );
+      float area = fmax(evaluateSphericalHermonicsArea( node, hitmark ), 0 );
+      bufferArea[rays[i].i*width + rays[i].j].r = area;//fmax(fmin(area/actualArea, 1.0), 0.0);
+      bufferArea[rays[i].i*width + rays[i].j].g = area;//fmax(fmin(area/actualArea, 1.0), 0.0);
+      bufferArea[rays[i].i*width + rays[i].j].b = area;//fmax(fmin(area/actualArea, 1.0), 0.0);
+      if( hitmark.y < -0.80 && hitmark.y > -0.9 && hitmark.z > 0.35 && hitmark.z < 0.45 && hitmark.x > -0.35 && hitmark.x < -0.25 )
+         buffer[rays[i].i*width + rays[i].j].b = 1.0;
+
+   }
+}
+outfile.writeTga( "hermonicslightingtest.tga" );
+outfileArea.writeTga( "hermonicsareatest.tga" );
+}
+*/
 
 int createInitRays( Ray **rays, int width, int height, float growth, Camera cam )
 {
@@ -48,8 +212,10 @@ int createInitRays( Ray **rays, int width, int height, float growth, Camera cam 
    {
       for( int j = 0; j < width ; j ++ )
       {
-         float u = cam.l + (cam.r-cam.l)*((float)j)/(float)width;
-         float v = cam.b + (cam.t-cam.b)*((float)i)/(float)height;
+         float r = (float)rand() / (float)RAND_MAX;
+         float u = cam.l + (cam.r-cam.l)*((float)j+r)/(float)width;
+         r = (float)rand() / (float)RAND_MAX;
+         float v = cam.b + (cam.t-cam.b)*((float)i+r)/(float)height;
          float w = 1;
          int c = i*width + j;
 
@@ -248,9 +414,127 @@ void castRaysCPU( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *ray
    }
    printf("Percent Complete: 100     \n");
 }
+bool first;
+void castRays( Scene scene, CudaNode *cpu_root, int nodes, SurfelArray cpu_array,
+      Ray *rays, int number,
+      Color *buffer, int width)
+{
+   glm::mat4 *cubetransforms;
+   vec3 ***cuberays = initCuberays();
+   initCubeTransforms( &cubetransforms );
+   printf("Casting Rays: \n");
+
+   Color black;
+   black.r = 0;
+   black.g = 0;
+   black.b = 0;
+
+   int last = 0;
+   int cur =0;
+   for( int h = 0; h < number; h++ )
+   {
+      Color color;
+      color.r =0;
+      color.g = 0;
+      color.b = 0;
+      Intersection inter = raytraceVisionRay( scene, rays[h] );
+      if ( inter.hit == false )
+      {
+         buffer[rays[h].i*width + rays[h].j] = color;
+         continue;
+      }
+      Surfel hits = intersectionToSurfel( inter, scene);
+      hits.pos.x += hits.normal.x * 0.001;
+      hits.pos.y += hits.normal.y * 0.001;
+      hits.pos.z += hits.normal.z * 0.001;
+
+      RasterCube cube;
+      for( int i = 0; i <6; i++)
+         for( int j = 0; j<8; j++)
+            for( int k =0; k<8;k++)
+            {
+               float ndotr = dot(hits.normal, cuberays[i][j][k]);
+               if( ndotr < 0.001 )
+               {
+                  cube.sides[i][j][k] = black;
+                  cube.depth[i][j][k] = -1;
+               }
+               else {
+                  cube.sides[i][j][k] = black;
+                  cube.depth[i][j][k] = -FAR_PLANE+1;
+               }
+            }
+      //printf("Ray: %f %f %f, %f %f %f\n", hits.pos.x, hits.pos.y, hits.pos.z, hits.normal.x, hits.normal.y, hits.normal.z );
+
+      if( !NO_BLEED )
+         traverseOctreeCPU( cube, cpu_root, 0, cpu_array, MAX_ANGLE, hits.pos,
+               hits.normal, cuberays, cubetransforms );
+      int num = 0;
+      for( int i = 0; i <6; i++)
+         for( int j = 0; j<8; j++)
+            for( int k =0; k<8;k++)
+            {
+               if( cube.depth[i][j][k] < 0 )
+                  continue;
+               num++;
+               if( cube.depth[i][j][k] < -FAR_PLANE +1 )
+               {
+                  float dotProd = dot( cuberays[i][j][k], hits.normal );
+                  float atten = 1.0 / ( cube.depth[i][j][k] );
+                  atten = fmin( atten, 10 );
+                  atten = 1;
+                  if(cube.sides[i][j][k].r > 0 )
+                     color.r += cube.sides[i][j][k].r*dotProd*atten;
+                  if(cube.sides[i][j][k].g > 0 )
+                     color.g += cube.sides[i][j][k].g*dotProd*atten;
+                  if(cube.sides[i][j][k].b > 0 )
+                     color.b += cube.sides[i][j][k].b*dotProd*atten;
+               }
+            }
+      //displayRasterCube( cube, rays[h].j );
+      //printf("Color: %f %f %f\n", color.r, color.g, color.b );
+      /*
+         if( num > 0 )
+         {
+         color.r /= (float)num;
+         color.g /= (float)num;
+         color.b /= (float)num;
+         }
+       */
+      /*
+         color.r += hits.color.r;
+         color.g += hits.color.g;
+         color.b += hits.color.b;
+       */
+
+      /*color.r += hits.color.r;
+      color.g += hits.color.g;
+      color.b += hits.color.b;
+      */
+
+      color.r = fmin( color.r, 1.0 );
+      color.r = fmax( color.r, 0.0 );
+      color.g = fmin( color.g, 1.0 );
+      color.g = fmax( color.g, 0.0 );
+      color.b = fmin( color.b, 1.0 );
+      color.b = fmax( color.b, 0.0 );
+
+      buffer[rays[h].i*width + rays[h].j] = color;
+      cur = (int)((float)h / (float)number * 100);
+      if ( cur > last )
+      {
+         printf("Percent Complete: %d/%d      \r", cur, 100);
+         fflush(stdout);
+         last = cur;
+      }
+   }
+   printf("Percent Complete: 100/100\n\n");
+}
 void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, int number,
       Color *buffer, int width)
 {
+   first = true;
+   static int tt = 0;
    glm::mat4 *cubetransforms;
    vec3 ***cuberays = initCuberays();
    initCubeTransforms( &cubetransforms );
@@ -266,7 +550,6 @@ void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, 
    int cur =0;
    for( int h = 0; h < number; h++ )
    {
-      RasterCube cube;
       Color color;
       color.r =0;
       color.g = 0;
@@ -276,6 +559,11 @@ void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, 
          buffer[rays[h].i*width + rays[h].j] = color;
          continue;
       }
+      //if( rays[h].i != 256-156 || rays[h].j > 82 || rays[h].j < 78  )
+      //   continue;
+      buffer[rays[h].i*width + rays[h].j] = gpu_hits[h].color;
+      continue;
+      RasterCube cube;
       for( int i = 0; i <6; i++)
          for( int j = 0; j<8; j++)
             for( int k =0; k<8;k++)
@@ -292,8 +580,9 @@ void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, 
                }
             }
 
-      traverseOctreeCPU( cube, cpu_root, 0, cpu_array, MAX_ANGLE, gpu_hits[h].pos,
-            gpu_hits[h].normal, cuberays, cubetransforms );
+      if( !NO_BLEED )
+         traverseOctreeCPU( cube, cpu_root, 0, cpu_array, MAX_ANGLE, gpu_hits[h].pos,
+               gpu_hits[h].normal, cuberays, cubetransforms );
       int num = 0;
       for( int i = 0; i <6; i++)
          for( int j = 0; j<8; j++)
@@ -307,6 +596,7 @@ void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, 
                   float dotProd = dot( cuberays[i][j][k], gpu_hits[h].normal );
                   float atten = 1.0 / ( cube.depth[i][j][k] );
                   atten = fmin( atten, 10 );
+                  atten = 1;
                   if(cube.sides[i][j][k].r > 0 )
                      color.r += cube.sides[i][j][k].r*dotProd*atten;
                   if(cube.sides[i][j][k].g > 0 )
@@ -315,24 +605,27 @@ void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, 
                      color.b += cube.sides[i][j][k].b*dotProd*atten;
                }
             }
-
-      if( num > 0 )
-      {
+      //displayRasterCube( cube, rays[h].j );
+      //printf("Color: %f %f %f\n", color.r, color.g, color.b );
+      /*
+         if( num > 0 )
+         {
          color.r /= (float)num;
          color.g /= (float)num;
          color.b /= (float)num;
-      }
+         }
+       */
       /*
-      color.r += gpu_hits[h].color.r;
-      color.g += gpu_hits[h].color.g;
-      color.b += gpu_hits[h].color.b;
-      */
+         color.r += gpu_hits[h].color.r;
+         color.g += gpu_hits[h].color.g;
+         color.b += gpu_hits[h].color.b;
+       */
 
-      color.r = fmin( color.r, 1.0 );
+      color.r = fmin( color.r, 0.6 );
       color.r = fmax( color.r, 0.0 );
-      color.g = fmin( color.g, 1.0 );
+      color.g = fmin( color.g, 0.6 );
       color.g = fmax( color.g, 0.0 );
-      color.b = fmin( color.b, 1.0 );
+      color.b = fmin( color.b, 0.6 );
       color.b = fmax( color.b, 0.0 );
 
       buffer[rays[h].i*width + rays[h].j] = color;
@@ -344,8 +637,9 @@ void castRays( CudaNode *cpu_root, int nodes, SurfelArray cpu_array, Ray *rays, 
       last = cur;
       // }
    }
+   printf("Percent Complete: 100/100\n\n");
 }
-TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
+TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays, int width )
 {
    vec3 min;
    vec3 max;
@@ -353,7 +647,10 @@ TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
 
    for( int i = 0; i < numRays; i++ )
    {
-      collectIntersections( scene, rays[i], IA );
+      //if( i%width < width-1 )
+      //collectIntersections( scene, rays[i], IA, rays[i+1] );
+      //else
+      //collectIntersections( scene, rays[i], IA, rays[i-1] );
    }
    shrinkIA( IA );
    SurfelArray SA = createSurfelArray( IA.num );
@@ -374,7 +671,7 @@ TreeNode createSurfelTree( const Scene &scene, Ray *rays, int numRays )
    freeSurfelArray( SA );
    return ret;
 }
-void createCudaSurfelTree( const Scene &scene, Ray *rays, int numRays, CudaNode* &gpu_root,
+void createCudaSurfelTree( const Scene &scene, Ray *rays, int numRays, int width, CudaNode* &gpu_root,
       int &nodes, SurfelArray &gpu_array )
 {
    vec3 min;
@@ -383,7 +680,11 @@ void createCudaSurfelTree( const Scene &scene, Ray *rays, int numRays, CudaNode*
 
    for( int i = 0; i < numRays; i++ )
    {
-      collectIntersections( scene, rays[i], IA );
+      if( i%width < width-1 )
+         collectIntersections( scene, rays[i], IA, rays[i], rays[i+1] );
+      else
+         collectIntersections( scene, rays[i], IA, rays[i-1], rays[i] );
+      //collectIntersections( scene, rays[i], IA, rays[numRays/2], rays[numRays/2+1] );
    }
    shrinkIA( IA );
    SurfelArray SA = createSurfelArray( IA.num );
@@ -405,7 +706,8 @@ void createCudaSurfelTree( const Scene &scene, Ray *rays, int numRays, CudaNode*
    createCudaTree( SA, min, max, gpu_root, nodes, gpu_array );
    freeSurfelArray( SA );
 }
-void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA )
+void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray &IA, const Ray &sec,
+      const Ray &third)
 {
    float t;
    int i = 0;
@@ -414,7 +716,17 @@ void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray
       t = triangleHitTest( scene.triangles[j], ray );
       if( t > 0 )
       {
-         addToIA( IA,  triangleIntersection( scene.triangles[j], ray, t ));
+         vec3 h;
+         h.x = sec.pos.x + sec.dir.x * t;
+         h.y = sec.pos.y + sec.dir.y * t;
+         h.z = sec.pos.z + sec.dir.z * t;
+         vec3 k;
+         k.x = third.pos.x + third.dir.x * t;
+         k.y = third.pos.y + third.dir.y * t;
+         k.z = third.pos.z + third.dir.z * t;
+         Intersection inter = triangleIntersection( scene.triangles[j], ray, t );
+         inter.radius = sqrt(distance( h, k )/2);
+         addToIA( IA,  inter);
          i++;
       }
    }
@@ -423,12 +735,32 @@ void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray
       float_2 sphereT = sphereHitTest( scene.spheres[j], ray );
       if( sphereT.t0 > 0 )
       {
-         addToIA( IA, sphereIntersection( scene.spheres[j], ray, sphereT.t0 ) );
+         vec3 h;
+         h.x = sec.pos.x + sec.dir.x * t;
+         h.y = sec.pos.y + sec.dir.y * t;
+         h.z = sec.pos.z + sec.dir.z * t;
+         vec3 k;
+         k.x = third.pos.x + third.dir.x * t;
+         k.y = third.pos.y + third.dir.y * t;
+         k.z = third.pos.z + third.dir.z * t;
+         Intersection inter = sphereIntersection( scene.spheres[j], ray, sphereT.t0 );
+         inter.radius = sqrt(distance( h, k )/2);
+         addToIA( IA, inter );
          i++;
       }
       if( sphereT.t1 > 0 )
       {
-         addToIA( IA, sphereIntersection( scene.spheres[j], ray, sphereT.t1 ) );
+         vec3 h;
+         h.x = sec.pos.x + sec.dir.x * t;
+         h.y = sec.pos.y + sec.dir.y * t;
+         h.z = sec.pos.z + sec.dir.z * t;
+         vec3 k;
+         k.x = third.pos.x + third.dir.x * t;
+         k.y = third.pos.y + third.dir.y * t;
+         k.z = third.pos.z + third.dir.z * t;
+         Intersection inter = sphereIntersection( scene.spheres[j], ray, sphereT.t1 );
+         inter.radius = sqrt(distance( h, k )/2);
+         addToIA( IA, inter );
          i++;
       }
    }
@@ -437,10 +769,65 @@ void collectIntersections( const Scene &scene, const Ray &ray, IntersectionArray
       t = planeHitTest( scene.planes[j], ray );
       if( t > 0 )
       {
-         addToIA( IA, planeIntersection( scene.planes[j], ray, t ));
+         vec3 h;
+         h.x = sec.pos.x + sec.dir.x * t;
+         h.y = sec.pos.y + sec.dir.y * t;
+         h.z = sec.pos.z + sec.dir.z * t;
+         vec3 k;
+         k.x = third.pos.x + third.dir.x * t;
+         k.y = third.pos.y + third.dir.y * t;
+         k.z = third.pos.z + third.dir.z * t;
+         Intersection inter = planeIntersection( scene.planes[j], ray, t );
+         inter.radius = sqrt(distance( h, k )/2);
+         addToIA( IA, inter);
          i++;
       }
    }
+}
+Intersection raytraceVisionRay( const Scene &scene, const Ray &ray )
+{
+   int best = -1;
+   Intersection bInter;
+   bInter.hit = false;
+   for( int j = 0; j < scene.numTriangles; j++ )
+   {
+      float t;
+      t = triangleHitTest( scene.triangles[j], ray );
+      if( t > 0 )
+      {
+         if( best < 0 || t < best )
+         {
+            best = t;
+            bInter = triangleIntersection( scene.triangles[j], ray, t );
+         }
+      }
+   }
+   for( int j = 0; j < scene.numSpheres; j++ )
+   {
+      float_2 sphereT = sphereHitTest( scene.spheres[j], ray );
+      if( sphereT.t0 > 0 )
+      {
+         if( best < 0 || sphereT.t0 < best )
+         {
+            best = sphereT.t0;
+            bInter = sphereIntersection( scene.spheres[j], ray, sphereT.t0 );
+         }
+      }
+   }
+   for( int j = 0; j < scene.numPlanes; j++ )
+   {
+      float t;
+      t = planeHitTest( scene.planes[j], ray );
+      if( t > 0 )
+      {
+         if( best < 0 || t < best )
+         {
+            best = t;
+            bInter = planeIntersection( scene.planes[j], ray, t );
+         }
+      }
+   }
+   return bInter;
 }
 void displayRasterCube( RasterCube &cube, int num )
 {
@@ -455,8 +842,12 @@ void displayRasterCube( RasterCube &cube, int num )
       {
          for( int k =0; k < 8; k++ )
          {
-            buffer[(7-j)*8 + k] = cube.sides[i][j][k];
+            printf("%f ", cube.sides[i][j][k].r);
+            buffer[(7-j)*8 + k].r = cube.sides[i][j][k].r;
+            buffer[(7-j)*8 + k].g = cube.sides[i][j][k].g;
+            buffer[(7-j)*8 + k].b = cube.sides[i][j][k].b;
          }
+         printf("\n");
       }
       outfile.writeTga( s.str().c_str() );
    }
@@ -711,7 +1102,6 @@ Color raytrace( const struct TreeNode &tree, const Ray &ray, vec3 ***cuberay, gl
 {
    static int it = 0;
    static int q = 0;
-   static bool first = true;
    Color color;
    color.r = 0;
    color.b = 0;
@@ -893,6 +1283,8 @@ TreeHitMark transTree( TreeNode tree, const Ray &ray )
 void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       vec3 &position, vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetransforms)
 {
+   //THIS IS WRONG FUNCTION;
+   return;
    if( node.leaf == 1 )
    {
       float dis = 0;
@@ -905,8 +1297,8 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
          }
          else
          {
-            rasterizeSurfelToCube( cube, node.SA.array[i], cubetransforms, cuberays,
-                  position, normal );
+            //rasterizeSurfelToCube( cube, node.SA.array[i], cubetransforms, cuberays,
+            //      position, normal );
          }
       }
    }
@@ -930,18 +1322,20 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       if( horizon == 8 )
          return;
       //if some of box is below go finer
-      else if ( horizon )
-      {
+      /*
+         else if ( horizon )
+         {
          for( int i = 0; i < 8; i++)
          {
-            if( node.children[i] != NULL )
-            {
-               traverseOctreeCPU( cube, *node.children[i], maxangle, position,
-                     normal, cuberays, cubetransforms );
-            }
+         if( node.children[i] != NULL )
+         {
+         traverseOctreeCPU( cube, *node.children[i], maxangle, position,
+         normal, cuberays, cubetransforms );
+         }
          }
          return;
-      }
+         }
+       */
       //Whole box is above horizon so go
       vec3 center;
       center = newDirection(node.box.max, node.box.min);
@@ -958,11 +1352,11 @@ void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle,
       float dis = distanceToBox( node.box, position );
       float area = evaluateSphericalHermonicsArea( node, centerToEye );
       float solidangle = area / (dis *dis);
-      if( solidangle < maxangle )
+      if( dis > 0.0001 && solidangle < maxangle )
       {
          Color c = evaluateSphericalHermonicsPower( node, centerToEye );
          rasterizeClusterToCube( cube, c, area, center, cubetransforms,
-               cuberays, position, normal );
+               cuberays, position, normal, dis );
          //rasterize the cluster as a disk
       }
       else
@@ -987,7 +1381,7 @@ void traverseOctreeCPU( RasterCube &cube, CudaNode *cpu_root, int current, Surfe
       for( int i = cpu_root[current].children[0]; i < cpu_root[current].children[1]; i++ )
       {
          dis = distance( position, cpu_array.array[i].pos );
-         if ( dis < cpu_array.array[i].radius )
+         if ( dis < cpu_array.array[i].radius)
          {
             raytraceSurfelToCube( cube, cpu_array.array[i], cuberays, position, normal );
          }
@@ -1000,19 +1394,65 @@ void traverseOctreeCPU( RasterCube &cube, CudaNode *cpu_root, int current, Surfe
    }
    else
    {
-      int horizon = belowHorizon( cpu_root[current].box, position, normal );
-      //if whole box is below skip
-      //if( horizon == 8 )
-      //   return;
-      //if some of box is below go finer
-      if ( horizon )
+      if( isIn( cpu_root[current].box, position ) )
       {
-         for( int i = 0; i < 8; i++)
+         if( cpu_root[current].leaf != true )
          {
-            if( cpu_root[current].children[i] > 0 )
+            for( int i = 0; i < 8; i++)
             {
                traverseOctreeCPU( cube, cpu_root, cpu_root[current].children[i], cpu_array,
                      maxangle, position, normal, cuberays, cubetransforms );
+            }
+         }
+         else
+         {
+            float dis = 0;
+            for( int i = cpu_root[current].children[0]; i < cpu_root[current].children[1]; i++ )
+            {
+               dis = distance( position, cpu_array.array[i].pos );
+               if ( dis < cpu_array.array[i].radius)
+               {
+                  raytraceSurfelToCube( cube, cpu_array.array[i], cuberays, position, normal );
+               }
+               else
+               {
+                  rasterizeSurfelToCube( cube, cpu_array.array[i], cubetransforms, cuberays,
+                        position, normal );
+               }
+            }
+         }
+         return;
+      }
+      int horizon = belowHorizon( cpu_root[current].box, position, normal );
+      //if whole box is below skip
+      if( horizon == 8 )
+         return;
+      //if some of box is below go finer
+      if ( horizon )
+      {
+         if( cpu_root[current].leaf != true)
+         {
+            for( int i = 0; i < 8; i++)
+            {
+               traverseOctreeCPU( cube, cpu_root, cpu_root[current].children[i], cpu_array,
+                     maxangle, position, normal, cuberays, cubetransforms );
+            }
+         }
+         else
+         {
+            float dis = 0;
+            for( int i = cpu_root[current].children[0]; i < cpu_root[current].children[1]; i++ )
+            {
+               dis = distance( position, cpu_array.array[i].pos );
+               if ( dis < cpu_array.array[i].radius)
+               {
+                  raytraceSurfelToCube( cube, cpu_array.array[i], cuberays, position, normal );
+               }
+               else
+               {
+                  rasterizeSurfelToCube( cube, cpu_array.array[i], cubetransforms, cuberays,
+                        position, normal );
+               }
             }
          }
          return;
@@ -1020,30 +1460,53 @@ void traverseOctreeCPU( RasterCube &cube, CudaNode *cpu_root, int current, Surfe
       //Whole box is above horizon so go
       vec3 center;
       center = newDirection(cpu_root[current].box.max, cpu_root[current].box.min);
+
       center.x /= 2.0;
       center.y /= 2.0;
       center.z /= 2.0;
+      center.x += cpu_root[current].box.min.x;
+      center.y += cpu_root[current].box.min.y;
+      center.z += cpu_root[current].box.min.z;
 
       vec3 centerToEye = newDirection( position, center );
       centerToEye = unit(centerToEye);
 
-      float dis = distanceToBox( cpu_root[current].box, position );
+      //float dis = distanceToBox( cpu_root[current].box, position );
+      float dis = distance( position, center );
       float area = evaluateSphericalHermonicsArea( cpu_root[current], centerToEye );
       float solidangle = area / (dis *dis);
       if( solidangle < maxangle )
       {
+         //printf("Solid %f, dis %f, area %f\n", solidangle, dis, area );
          Color c = evaluateSphericalHermonicsPower( cpu_root[current], centerToEye );
-         rasterizeClusterToCube( cube, c, area, getCenter(cpu_root[current].box), cubetransforms,
-               cuberays, position, normal );
+         rasterizeClusterToCube( cube, c, area, center, cubetransforms,
+               cuberays, position, normal, dis );
       }
       else
       {
-         for( int i = 0; i < 8; i++)
+         if( cpu_root[current].leaf != true)
          {
-            if( cpu_root[current].children[i] > 0 )
+            for( int i = 0; i < 8; i++)
             {
                traverseOctreeCPU( cube, cpu_root, cpu_root[current].children[i], cpu_array,
                      maxangle, position, normal, cuberays, cubetransforms );
+            }
+         }
+         else
+         {
+            float d = 0;
+            for( int i = cpu_root[current].children[0]; i < cpu_root[current].children[1]; i++ )
+            {
+               d = distance( position, cpu_array.array[i].pos );
+               if ( d < cpu_array.array[i].radius)
+               {
+                  raytraceSurfelToCube( cube, cpu_array.array[i], cuberays, position, normal );
+               }
+               else
+               {
+                  rasterizeSurfelToCube( cube, cpu_array.array[i], cubetransforms, cuberays,
+                        position, normal );
+               }
             }
          }
       }
@@ -1120,43 +1583,13 @@ glm::mat4 getViewPixelMatrix()
    return glm::transpose(ret);
 }
 void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePosition,
-      glm::mat4 *cubetransforms, vec3 ***cuberays, vec3 &position, vec3 &normal)
+      glm::mat4 *cubetransforms, vec3 ***cuberays, vec3 &position, vec3 &normal, float dis)
 {
    const static glm::mat4 M = getViewPixelMatrix() * getOrthMatrix() * getProjectMatrix();
    const static glm::vec4 *wVecs = getWVecs();
-   /*
-      printf("view-pixel\n");
-      for( int e = 0; e < 4; e++ )
-      {
-      for( int a = 0; a < 4; a++ )
-      {
-      printf("%f ", glm::transpose(getViewPixelMatrix())[e][a]);
-      }
-      printf("\n");
-      }
-      printf("Orth\n");
-      for( int e = 0; e < 4; e++ )
-      {
-      for( int a = 0; a < 4; a++ )
-      {
-      printf("%f ", glm::transpose(getOrthMatrix())[e][a]);
-      }
-      printf("\n");
-      }
-      printf("project\n");
-      for( int e = 0; e < 4; e++ )
-      {
-      for( int a = 0; a < 4; a++ )
-      {
-      printf("%f ", glm::transpose(getProjectMatrix())[e][a]);
-      }
-      printf("\n");
-      }
-      printf("eyeTrans\n");
-    */
-   vec3 check = newDirection( nodePosition, position );
+   vec3 check = newDirection( position, nodePosition );
    check = unit(check);
-   if( dot(check, normal) <= 0 )
+   if( dot(check, normal) > 0 )
    {
       return;
    }
@@ -1164,27 +1597,17 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
    eyeTrans[0][3] = -position.x;
    eyeTrans[1][3] = -position.y;
    eyeTrans[2][3] = -position.z;
-   eyeTrans = glm::transpose( eyeTrans );
-   /*
-      for( int e = 0; e < 4; e++ )
-      {
-      for( int a = 0; a < 4; a++ )
-      {
-      printf("%f ", glm::transpose(eyeTrans)[e][a]);
-      }
-      printf("\n");
-      }
-    */
    float areas[6];
-   glm::vec3 Snormal = glm::vec3(-check.x, -check.y, -check.z);
-   /*vec3 tp = newDirection( nodePosition, position );
-     tp = unit(tp);
-     glm::vec3 Snormal = glm::vec3(tp.x, tp.y, tp.z);
-    */
    for( int i =0; i < 6; i++ )
    {
-      glm::vec3 t = glm::vec3(wVecs[i][0], wVecs[i][1], wVecs[i][2]);
-      areas[i] = glm::dot( t, Snormal ) * area;
+      vec3 w;
+      w.x = wVecs[i][0];
+      w.y = wVecs[i][1];
+      w.z = wVecs[i][2];
+      if( dot( w, check ) > 0 )
+         areas[i] = dot( w, check ) * area;
+      else
+         areas[i] = 0;
    }
 
    for( int k = 0; k< 6; k++ )
@@ -1194,46 +1617,17 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
       float length = sqrtf(areas[k]);
       glm::mat4 cur = M * cubetransforms[k] * eyeTrans;
 
-      /*
-         printf("cubetransforms\n");
-         for( int e = 0; e < 4; e++ )
-         {
-         for( int a = 0; a < 4; a++ )
-         {
-         printf("%f ", glm::transpose(cubetransforms[k])[e][a]);
-         }
-         printf("\n");
-         }
-         printf("Total\n");
-         for( int e = 0; e < 4; e++ )
-         {
-         for( int a = 0; a < 4; a++ )
-         {
-         printf("%f ", glm::transpose(cur)[e][a]);
-         }
-         printf("\n");
-         }
-       */
       glm::vec4 *points = getAxisAlinedPoints( nodePosition, length/2.0, k );
-      /*
-         for( int i = 0; i < 4; i++ )
-         printf("Pre:%d, %d: %f %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2], points[i][3] );
-       */
       points[0] = cur * points[0];
       points[1] = cur * points[1];
       points[2] = cur * points[2];
       points[3] = cur * points[3];
-      /*
-         for( int i = 0; i < 4; i++ )
-         printf("mid:%d, %d: %f %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2], points[i][3] );
-       */
       for( int i = 0; i < 4; i++ )
       {
          points[i][0] /= points[i][3];
          points[i][1] /= points[i][3];
          points[i][2] /= points[i][3];
          points[i][3] = 1;
-         //printf("post:%d, %d: %f %f %f\n", k, i, points[i][0], points[i][1], points[i][2] );
       }
       int minX = 0;
       int minY = 0;
@@ -1254,7 +1648,6 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
          if( maxY < points[i][1] )
             maxY = roundf(points[i][1]+0.5);
       }
-      //printf("min: %d %d, %d %d", minX, maxX, minY, maxY );
       if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
       {
          if( minX < 0 )
@@ -1266,24 +1659,26 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
          if( maxY > 7 )
             maxY = 7;
 
-         float dis = distance( position, nodePosition );
          for( int i = minY; i <= maxY; i++ )
          {
             for( int j = minX; j <= maxX; j++ )
             {
                if (cube.depth[k][i][j] < 0)
+               {
                   continue;
+               }
                else if ( dis < cube.depth[k][i][j] )
                {
-                  cube.sides[k][i][j].r = c.r;
-                  cube.sides[k][i][j].g = c.g;
-                  cube.sides[k][i][j].b = c.b;
+                  cube.sides[k][i][j].r = c.r *(1.0/ (dis * dis));
+                  cube.sides[k][i][j].g = c.g *(1.0/ (dis * dis));
+                  cube.sides[k][i][j].b = c.b *(1.0/ (dis * dis));
                   cube.depth[k][i][j] = dis;
                }
             }
          }
       }
       delete []points;
+
    }
 }
 void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetransforms,
@@ -1291,31 +1686,41 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
 {
    const static glm::mat4 M = getViewPixelMatrix() * getOrthMatrix() * getProjectMatrix();
    const static glm::vec4 *wVecs = getWVecs();
-   vec3 diff = newDirection( surfel.pos, position );
+   vec3 diff = newDirection( position, surfel.pos );
    diff = unit(diff);
    float dotPro = dot(normal, diff);
-   if( dotPro < 0 )
+   if( dotPro > 0 )
       return;
    //get projected area for each side
    double area = surfel.radius *surfel.radius * PI;
+
    double areas[6];
-   glm::vec3 Snormal = glm::vec3( surfel.normal.x, surfel.normal.y, surfel.normal.z );
+   //glm::vec3 Snormal = glm::vec3( surfel.normal.x, surfel.normal.y, surfel.normal.z );
+   //glm::vec3 sp = glm::vec3( diff.x, diff.y, diff.z );
    for( int i =0; i < 6; i++ )
    {
-      glm::vec3 t = glm::vec3(wVecs[i][0], wVecs[i][1], wVecs[i][2]);
-      areas[i] = glm::dot( t, Snormal ) * area;
-   }
+      vec3 w;
+      w.x = wVecs[i][0];
+      w.y = wVecs[i][1];
+      w.z = wVecs[i][2];
+      if(  dot( w, diff ) > 0 && dot( diff, surfel.normal ) )
+         areas[i] = dot( w, diff ) * area * dot( diff, surfel.normal );
+      else
+         areas[i] = 0;
 
+      //glm::vec3 t = glm::vec3(wVecs[i][0], wVecs[i][1], wVecs[i][2]);
+      //areas[i] = glm::dot( t, Snormal ) * area;
+   }
    glm::mat4 eyeTrans = glm::mat4(1.0);
    eyeTrans[3][0] = -position.x;
    eyeTrans[3][1] = -position.y;
    eyeTrans[3][2] = -position.z;
-   eyeTrans = glm::transpose( eyeTrans );
+   //eyeTrans = glm::transpose( eyeTrans );
 
    //For each face
    for( int k = 0; k< 6; k++ )
    {
-      if( areas[k] < 0.0000001 )
+      if( areas[k] < 0.00001 )
       {
          continue;
       }
@@ -1365,6 +1770,7 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
          float dis = distance( position, surfel.pos );
          for( int i = minY; i <= maxY; i++ )
          {
+
             for( int j = minX; j <= maxX; j++ )
             {
                if (cube.depth[k][i][j] < 0)
@@ -1373,9 +1779,10 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
                }
                else if ( dis < cube.depth[k][i][j] )
                {
-                  cube.sides[k][i][j].r = surfel.color.r;
-                  cube.sides[k][i][j].g = surfel.color.g;
-                  cube.sides[k][i][j].b = surfel.color.b;
+                  float atten = (areas[k]/ (1+dis * dis));
+                  cube.sides[k][i][j].r = surfel.color.r * atten;
+                  cube.sides[k][i][j].g = surfel.color.g * atten;
+                  cube.sides[k][i][j].b = surfel.color.b * atten;
                   cube.depth[k][i][j] = dis;
                }
             }
@@ -1388,6 +1795,7 @@ void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetra
 void raytraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position,
       vec3 &normal )
 {
+   const static glm::vec4 *wVecs = getWVecs();
    for( int i = 0; i < 6; i++ )
    {
       for( int j = 0; j < 8; j ++ )
@@ -1403,14 +1811,34 @@ void raytraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, v
                ray.pos.y += ray.dir.y*.001;
                ray.pos.z += ray.dir.z*.001;
                float t = surfelHitTest( surfel, ray );
+               if( t < 0 )
+               {
+                  Surfel s = surfel;
+                  s.normal.x *= -1;
+                  s.normal.y *= -1;
+                  s.normal.z *= -1;
+                  t = surfelHitTest( s, ray );
+               }
                if( t > 0 && t < cube.depth[i][j][k] )
                {
-                  cube.depth[i][j][k] = t;
-                  cube.sides[i][j][k] = surfel.color;
                   vec3 hit;
                   hit.x = ray.pos.x + ray.dir.x * t;
                   hit.y = ray.pos.y + ray.dir.y * t;
                   hit.z = ray.pos.z + ray.dir.z * t;
+                  vec3 w;
+                  w.x = wVecs[i][0];
+                  w.y = wVecs[i][1];
+                  w.z = wVecs[i][2];
+                  vec3 diff = newDirection( position, hit );
+                  diff = unit(diff);
+                  float dis = distance( hit, position );
+                  float area = surfel.radius * surfel.radius * PI * dot( w, diff );
+                  float atten = area/(1+dis*dis);
+
+                  cube.depth[i][j][k] = dis;
+                  cube.sides[i][j][k].r = surfel.color.r * atten;
+                  cube.sides[i][j][k].g = surfel.color.g * atten;
+                  cube.sides[i][j][k].b = surfel.color.b * atten;
                }
             }
          }
@@ -1432,14 +1860,17 @@ float evaluateSphericalHermonicsArea( const TreeNode &node, vec3 &centerToEye )
    {
       area += node.hermonics.area[i] * TYlm[i];
    }
+   if( area < 0 )
+      printf("area %f\n", area);
    area = fmax(area, 0);
+   free( TYlm );
    return area;
 }
 Color evaluateSphericalHermonicsPower( const TreeNode &node, vec3 &centerToEye )
 {
    /*float theta = acosf( centerToEye.y );
    //centerToEye.x can be 0 but atanf can handle -inf and inf
-   float phi = atanf( centerToEye.y/centerToEye.x );
+   floa/ct phi = atanf( centerToEye.y/centerToEye.x );
    float * TYlm = getYLM( sinf(theta) *cosf(phi), sinf(theta) * sinf(phi), cosf(theta) );
     */
    double * TYlm = getYLM( centerToEye.x, centerToEye.y, centerToEye.z );
@@ -1461,6 +1892,7 @@ Color evaluateSphericalHermonicsPower( const TreeNode &node, vec3 &centerToEye )
    color.r = fmax( color.r, 0);
    color.g = fmax( color.g, 0);
    color.b = fmax( color.b, 0);
+   free( TYlm );
    return color;
 }
 float evaluateSphericalHermonicsArea( const CudaNode &node, vec3 &centerToEye )
@@ -1479,6 +1911,7 @@ float evaluateSphericalHermonicsArea( const CudaNode &node, vec3 &centerToEye )
       area += node.hermonics.area[i] * TYlm[i];
    }
    area = fmax(area, 0);
+   free( TYlm );
    return area;
 }
 Color evaluateSphericalHermonicsPower( const CudaNode &node, vec3 &centerToEye )
@@ -1500,12 +1933,9 @@ Color evaluateSphericalHermonicsPower( const CudaNode &node, vec3 &centerToEye )
       color.g += node.hermonics.green[i] * TYlm[i];
       color.b += node.hermonics.blue[i] * TYlm[i];
    }
-   /*color.r = fmin( color.r, 1.0 );
-     color.g = fmin( color.g, 1.0 );
-     color.b = fmin( color.b, 1.0 );
-    */
    color.r = fmax( color.r, 0);
    color.g = fmax( color.g, 0);
    color.b = fmax( color.b, 0);
+   free( TYlm );
    return color;
 }
