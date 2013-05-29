@@ -57,5 +57,15 @@ PointLight parsePointLight( FILE *file )
          exit(1);
       }
    }
+   for( int i = 0; i < 100; i++ )
+   {
+      vec3 r;
+      r.x = (2*(float)rand() / (float)RAND_MAX) - 1;
+      r.y = (2*(float)rand() / (float)RAND_MAX) - 1;
+      r.z = (2*(float)rand() / (float)RAND_MAX) - 1;
+      light.points[i].x = light.pos.x + r.x;
+      light.points[i].y = light.pos.y + r.y;
+      light.points[i].z = light.pos.z + r.z;
+   }
    return light;
 }

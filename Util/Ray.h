@@ -52,9 +52,9 @@ void pollTest( const TreeNode &tree, float angle, vec3 ***cuberay, glm::mat4 *cu
 void traverseOctreeCPU( RasterCube &cube, const TreeNode &node, float maxangle, vec3 &position,
       vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetrans);
 void traverseOctreeCPU( RasterCube &cube, CudaNode *cpu_root, int current, SurfelArray &cpu_array,
-      float maxangle, vec3 &position, vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetransforms);
+      float maxangle, vec3 &position, vec3 &normal, vec3 ***cuberays, glm::mat4 *cubetransforms, bool above, bool debug);
 void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePosition,
-      glm::mat4 *cubetransforms, vec3 ***cuberays, vec3 &position, vec3 &normal, float dis);
+      glm::mat4 *cubetransforms, vec3 ***cuberays, vec3 &position, vec3 &normal, float dis, bool debug);
 void rasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetransforms,
       vec3 ***cuberays, vec3 &position, vec3 &normal );
 void raytraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position,
@@ -68,8 +68,9 @@ void initCubeTransforms( glm::mat4 **cubetrans );
 glm::mat4 getViewPixelMatrix();
 glm::mat4 getOrthMatrix();
 glm::mat4 getProjectMatrix();
-void tester( const struct TreeNode &tree, vec3 ***cuberay, glm::mat4 *cubetrans );
 void castRays( Scene scene, CudaNode *cpu_root, int nodes, SurfelArray cpu_array,
       Ray *rays, int number,
       Color *buffer, int width);
+float evaluateSphericalHermonicsAreaAll( const CudaNode &node, const BoundingBox &box, 
+      const vec3 &position );
 #endif

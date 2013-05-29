@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
    Ray *rays;
 
-   int samples = 256;
+   int samples = 512;
    int number = createInitRays( &rays, samples, samples, 1.0, scene.camera );
    int size = 0;
 

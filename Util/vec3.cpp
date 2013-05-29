@@ -79,11 +79,3 @@ void keepMax( vec3 &max, vec3 pos )
    if( max.z < pos.z )
       max.z = pos.z;
 }
-vec3 neg( vec3 &in )
-{
-   vec3 ret;
-   ret.x = -in.x;
-   ret.y = -in.y;
-   ret.z = -in.z;
-   return ret;
-}

@@ -23,7 +23,7 @@ extern "C" void gpuTestFirstPassSphericalHermonics( CudaNode *root, int nodes, S
 
 void addToNode( TreeNode *root, const Surfel &surfel, int depth )
 {
-   if( root->leaf && root->SA.num >= 31 && depth < MAX_DEPTH )
+   if( root->leaf && root->SA.num >= 15 && depth < MAX_DEPTH )
    {
       BoundingBox *boxes = getSubBoxes( root->box );
       for( int i = 0; i < 8; i++ )
@@ -86,7 +86,6 @@ TreeNode createOctreeMark2( SurfelArray &SA, vec3 min, vec3 max )
    max.x = fmin( max.x, MAX_OCTREE_SIZE );
    max.y = fmin( max.y, MAX_OCTREE_SIZE );
    max.z = fmin( max.z, MAX_OCTREE_SIZE );
-   printf("%f %f %f, %f %f %f\n", min.x, min.y, min.z, max.x, max.y, max.z );
 
    root->box = createBoundingBox( min, max );
    root->leaf = true;
@@ -166,6 +165,7 @@ void createCudaTree( SurfelArray cpu_array, vec3 min, vec3 max, CudaNode* &gpu_r
    max.x = fmin( max.x, MAX_OCTREE_SIZE );
    max.y = fmin( max.y, MAX_OCTREE_SIZE );
    max.z = fmin( max.z, MAX_OCTREE_SIZE );
+   printf("min %f %f %f, %f %f %f\n", min.x, min.y, min.z, max.x, max.y, max.z );
 
    cpu_root->box = createBoundingBox( min, max );
    cpu_root->leaf = true;

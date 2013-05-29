@@ -16,6 +16,7 @@
 typedef struct PointLight {
    Color color;
    vec3 pos;
+   vec3 points[100];
 } PointLight;
 
 PointLight parsePointLight( FILE *file );

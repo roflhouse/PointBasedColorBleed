@@ -346,6 +346,7 @@ __device__ bool gpuBBInTest( const BoundingBox &box, const vec3 &pos )
       return false;
    return true;
 }
+/*
 __device__ void gpuTraverseOctreeStack( RasterCube &cube, CudaNode *gpu_root, Surfel *gpu_array,
       vec3 &position, vec3 normal, vec3 ***cuberays, glm::mat4 *cubetransforms )
 {
@@ -424,3 +425,4 @@ __device__ void gpuTraverseOctreeStack( RasterCube &cube, CudaNode *gpu_root, Su
       }
    }
 }
+*/

@@ -21,7 +21,7 @@
       exit(1); \
    } }
 #define PI 3.14159265359
-#define MONTE_CARLO_N 256
+#define MONTE_CARLO_N 64
 #define MAX_DEPTH  20
 #define MAX_OCTREE_SIZE 1000
 
@@ -67,7 +67,7 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel surfel, int s
       areas[i] = 0;
    }
 
-   double area = PI * surfel.radius * surfel.radius;
+   double area = PI * surfel.radius * surfel.radius/1.0625;
    Color inColor;
    inColor.r = fmin(surfel.color.r, (float)0.999);
    inColor.g = fmin(surfel.color.g, (float)0.999);
@@ -114,6 +114,8 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel surfel, int s
          d_dot_n = dx * (double)surfel.normal.x;
          d_dot_n += dy * (double)surfel.normal.y;
          d_dot_n += dz * (double)surfel.normal.z;
+         if( d_dot_n < 0 )
+            continue;
 
          tx = sin_theta * cos_phi;
          ty = sin_theta * sin_phi;
@@ -129,22 +131,19 @@ __device__ Hermonics gpuCalculateSphericalHermonics( struct Surfel surfel, int s
          TYlm[8] = .546274 * (tx*tx - ty*ty); //2 2
 
          //now > 0
-         if(d_dot_n > 0.001)
+         for( int k = 0; k < 9; k++ )
          {
-            for( int k = 0; k < 9; k++ )
-            {
-               double a = (area * d_dot_n * TYlm[k] * sin_theta);
-               /*
-               //Red
-               red[k] += (double)inColor.r * a;
-               //Green
-               green[k] += (double)inColor.g * a;
-               //Blue
-               blue[k] += (double)inColor.b * a;
-               //area
-               */
-               areas[k] += a;
-            }
+            double a = (area * d_dot_n * TYlm[k] * sin_theta);
+            /*
+            //Red
+            red[k] += (double)inColor.r * a;
+            //Green
+            green[k] += (double)inColor.g * a;
+            //Blue
+            blue[k] += (double)inColor.b * a;
+            //area
+             */
+            areas[k] += a;
          }
       }
    }

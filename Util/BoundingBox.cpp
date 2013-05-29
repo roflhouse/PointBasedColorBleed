@@ -8,7 +8,7 @@
  */
 
 #include "BoundingBox.h"
-#define RADIUS 0.002 
+#define RADIUS 0.002
 
 BoundingBox createBoundingBox( const vec3 &min, const vec3 &max )
 {
@@ -195,6 +195,17 @@ int belowHorizon( const BoundingBox &box, vec3 &position, vec3 &normal )
       if( dot( normal, temp ) <= 0.01 )
          below++;
    }
+   return below;
+}
+int quickBelowHorizon( const BoundingBox &box, vec3 &position, vec3 &normal )
+{
+   int below = 0;
+   vec3 temp = unit( newDirection( box.min, position ) );
+   if( dot( normal, temp ) < 0 )
+      below++;
+   temp = unit( newDirection( box.max, position ) );
+   if( dot( normal, temp ) < 0 )
+      below++;
    return below;
 }
 vec3 getCenter( const BoundingBox &box )
