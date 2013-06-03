@@ -3,11 +3,11 @@
 #  @author Nick Feeney
 CC=nvcc
 LD=nvcc
-CFLAGS=  -c -pg -O3 -Xcompiler -fopenmp
-CFLAGSCUDA= -c -O3 -arch=sm_21 
-LDFLAGS= -O3 -pg -Xcompiler -fopenmp 
+CFLAGS=  -c -O3 -Xcompiler -fopenmp
+CFLAGSCUDA= -c -O3 -arch=sm_21  -use_fast_math --maxrregcount 32 
+LDFLAGS= -O3 -Xcompiler -fopenmp 
 
-ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o  Util/CudaOctree.o Util/CudaRay.o
+ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o  Util/CudaOctree.o Util/CudaRay.o Util/CudaRasterize.o
 
 all:	$(ALL) PBC 
 
@@ -35,6 +35,9 @@ Util/BoundingBox.o:	Util/BoundingBox.cpp Util/BoundingBox.h Util/vec3.h
 Util/CudaRay.o:	Util/CudaRay.cu Util/vec3.h Objects/Surfel.h
 	$(CC) $(CFLAGSCUDA) -o $@ $<
    
+Util/CudaRasterize.o:	Util/CudaRasterize.cu Util/vec3.h Objects/Surfel.h Util/BoundingBox.h
+	$(CC) $(CFLAGSCUDA) -o $@ $<
+
 Util/CudaOctree.o:	Util/CudaOctree.cu  Util/vec3.h Objects/SurfelType.h Util/OctreeType.h
 	$(CC) $(CFLAGSCUDA) -o $@ $<
 

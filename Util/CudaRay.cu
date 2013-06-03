@@ -32,7 +32,6 @@ __device__ vec3 gpuUnit(vec3 &in);
 __device__ float magCuda(const vec3 &in);
 __device__ bool testForHitCuda( BoundingBox &boxIn, Ray &ray );
 __device__ Surfel gpu_raytrace( CudaNode *gpu_root, Surfel *gpu_array, Ray &ray );
-__device__ bool gpuBBInTest( const BoundingBox &box, const vec3 &pos );
 
 __global__ void kernel_CastRays( CudaNode *gpu_root, Surfel *gpu_array,
       int surfels, Ray *gpu_rays, int num_rays, Surfel *output );
@@ -157,6 +156,11 @@ __device__ Surfel gpu_raytrace( CudaNode *gpu_root, Surfel *gpu_array, Ray &ray 
    }
    return bestSurfel;
 }
+__device__ float gpuDot(const vec3 &one, const vec3 &two)
+{
+      return one.x*two.x + one.y*two.y + one.z*two.z;
+}
+
 __device__ float surfelHitTestCuda( Surfel s, Ray &ray )
 {
    vec3 direction = gpuUnit(ray.dir);
@@ -285,144 +289,3 @@ __device__ bool testForHitCuda( BoundingBox &boxIn, Ray &ray )
       return false;
    return true;
 }
-__device__ float gpuDot(const vec3 &one, const vec3 &two)
-{
-   return one.x*two.x + one.y*two.y + one.z*two.z;
-}
-
-__device__ float gpuDistance(const vec3 &one, const vec3 &two )
-{
-   return sqrt((one.x-two.x)*(one.x-two.x) + (one.y-two.y)*(one.y-two.y) +
-         (one.z-two.z)*(one.z-two.z));
-}
-__device__ int gpuBelowHorizon( const BoundingBox &box, vec3 &position, vec3 &normal )
-{
-   vec3 points[8];
-   points[0] = box.min;
-   points[1] = box.min;
-   points[1].z = box.max.z;
-   points[2] = box.min;
-   points[2].y = box.max.y;
-   points[3] = box.min;
-   points[3].y = box.max.y;
-   points[3].z = box.max.z;
-   points[4] = box.min;
-   points[4].x = box.max.x;
-   points[5] = box.min;
-   points[5].x = box.max.x;
-   points[5].z = box.max.z;
-   points[6] = box.min;
-   points[6].x = box.max.x;
-   points[6].y = box.max.y;
-   points[7] = box.max;
-   int below = 0;
-   for( int i = 0; i < 8; i++ )
-   {
-      vec3 temp;
-      temp.x = points[i].x - position.x;
-      temp.y = points[i].y - position.y;
-      temp.z = points[i].z - position.z;
-      temp = gpuUnit( temp );
-      if( gpuDot( normal, temp ) <= 0.01 )
-         below++;
-   }
-   return below;
-}
-__device__ vec3 gpuGetCenter( const BoundingBox &box )
-{
-   vec3 c;
-   c.x = (box.max.x -box.min.x)/2 + box.min.x;
-   c.y = (box.max.y -box.min.y)/2 + box.min.y;
-   c.x = (box.max.z -box.min.z)/2 + box.min.z;
-   return c;
-}
-__device__ bool gpuBBInTest( const BoundingBox &box, const vec3 &pos )
-{
-   if (pos.x >= box.max.x || pos.x < box.min.x )
-      return false;
-   if (pos.y >= box.max.y || pos.y < box.min.y )
-      return false;
-   if (pos.z >= box.max.z || pos.z < box.min.z )
-      return false;
-   return true;
-}
-/*
-__device__ void gpuTraverseOctreeStack( RasterCube &cube, CudaNode *gpu_root, Surfel *gpu_array,
-      vec3 &position, vec3 normal, vec3 ***cuberays, glm::mat4 *cubetransforms )
-{
-   float dis = 0;
-
-   int stack[MAX_OCTREE_DEPTH * 8];
-   int pointer = 0;
-   stack[pointer] = 0;
-   pointer++;
-
-   while( pointer )
-   {
-      pointer--;
-      int current = stack[pointer];
-
-      CudaNode node = gpu_root[current];
-      if( node.leaf )
-      {
-         for( int i = node.children[0]; i < node.children[1]; i++ )
-         {
-            Surfel s = gpu_array[i];
-            dis = gpuDistance( position, s.pos );
-            if ( dis < s.radius)
-            {
-               gpuRaytraceSurfelToCube( cube, s, cuberays, position, normal );
-            }
-            else
-            {
-               gpuRasterizeSurfelToCube( cube, s, cubetransforms, cuberays,
-                     position, normal );
-            }
-         }
-      }
-      else
-      {
-         if( gpuBBInTest( node.box, position ) )
-         {
-            for(int i = 7; i <= 0; i-- )
-            {
-               stack[pointer] = node.children[i];
-               pointer++;
-            }
-            continue;
-         }
-         int horizon = gpuBelowHorizon( node.box, position, normal );
-         if( horizon == 8 )
-            continue;
-
-         vec3 center = gpuGetCenter(node.box);
-
-         vec3 centerToEye;
-         centerToEye.x = position.x - center.x;
-         centerToEye.y = position.y - center.y;
-         centerToEye.z = position.z - center.z;
-         centerToEye = gpuUnit(centerToEye);
-
-         dis = distance( position, center );
-         float area = gpuEvaluateSphericalHermonicsArea( node, centerToEye );
-         float solidangle = area / (dis * dis);
-         if( solidangle < MAX_ANGLE )
-         {
-            Color c = gpuEvaluateSphericalHermonicsPower( node, centerToEye );
-            gpuRasterizeClusterToCube( cube, c, area, center, cubetransforms, cuberays,
-                  position, normal, dis );
-            continue;
-         }
-         else
-         {
-            for(int i = 7; i <= 0; i-- )
-            {
-               stack[pointer] = node.children[i];
-               pointer++;
-            }
-            continue;
-         }
-      }
-   }
-}
-*/

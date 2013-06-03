@@ -64,7 +64,8 @@ int main(int argc, char *argv[])
 
    //castRays( surfels, rays, number, buffer, width_of_image );
    printf("From Main: root %d, Array: %d\n", nodes, cpu_array.num );
-   castRays( scene, cpu_root, nodes, cpu_array, rays, number, buffer, width_of_image );
+   castRaysGPUSurfels( scene, cpu_root, nodes, cpu_array, rays, number, buffer, width_of_image );
+   //castRays( scene, cpu_root, nodes, cpu_array, rays, number, buffer, width_of_image );
    //castRays( cpu_root, nodes, cpu_array, rays, number, buffer, width_of_image );
 
    free( scene.spheres );
