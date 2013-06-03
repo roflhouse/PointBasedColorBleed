@@ -3,9 +3,9 @@
 #  @author Nick Feeney
 CC=nvcc
 LD=nvcc
-CFLAGS=  -c -O3 -Xcompiler -fopenmp
-CFLAGSCUDA= -c -O3 -arch=sm_21  -use_fast_math --maxrregcount 32 
-LDFLAGS= -O3 -Xcompiler -fopenmp 
+CFLAGS=  -c -O3 -Xcompiler -fopenmp -I "./glm"
+CFLAGSCUDA= -c -O3 -arch=sm_21  -use_fast_math --maxrregcount 32 -I "./glm"
+LDFLAGS= -O3 -Xcompiler -fopenmp -I "./glm"
 
 ALL= Util/Header.o Util/Tga.o Objects/Sphere.o Objects/LightSource.o Objects/Plane.o Objects/ObjectInfo.o Objects/Camera.o Util/Parser.o Objects/Triangle.o Util/vec3.o Util/Ray.o Util/Intersection.o Objects/Surfel.o Util/Octree.o Util/BoundingBox.o  Util/CudaOctree.o Util/CudaRay.o Util/CudaRasterize.o
 

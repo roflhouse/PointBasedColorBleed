@@ -16,11 +16,13 @@
 #include <string.h>
 #include <ctype.h>
 #include "vec3.h"
-#include "UtilTypes.h"
 #include "RasterCube.h"
+#include "BoundingBoxType.h"
+#include "../Objects/SurfelType.h"
 #include "cutil.h"
 #include <cuda.h>
 #include <curand_kernel.h>
+#define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #define CUDASAFECALL( call )  CUDA_SAFE_CALL( call )
@@ -422,6 +424,7 @@ __global__ void kernel_SharedSurfelBleed( Surfel *surfels, int num_surfels, vec3
                gpuRasterizeSurfelToCube( cube, current, ct, (vec3 ***)cr, position, normal, dis );
          }
       }
+      __syncthreads();
    }
    Color color;
    color.r = 0;
@@ -559,18 +562,16 @@ extern "C" Color *gpuSurfelColorBleeding( SurfelArray cpu_array, vec3 *positions
             cudaMemcpyHostToDevice));
 
    int num_blocks = ceilf( (float)num /THREADS );
+   /*
    int batch_size = 1;
    int batches = ceilf( (float)num_blocks/batch_size );
+   */
    dim3 dimBlock( THREADS );
-   dim3 dimGrid( batch_size );
+   dim3 dimGrid( num_blocks );
 
    printf("GPU Surfel only Bleeding\n");
-   for( int i = 0; i < batches; i++ )
-   {
       kernel_SharedSurfelBleed<<<dimGrid, dimBlock>>>( d_surfels, cpu_array.num, d_positions,
-            d_normals, d_indirect, num, i, batch_size );
-      printf("%d/%d\n",i, batches);
-   }
+            d_normals, d_indirect, num, 0, 0 );
    CUDAERRORCHECK();
 
    CUDASAFECALL(cudaMemcpy( indirect, d_indirect, sizeof(Color) * num,
