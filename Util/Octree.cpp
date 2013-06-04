@@ -10,7 +10,7 @@
 #include "Octree.h"
 #define PI 3.14159265359
 #define MONTE_CARLO_N 256
-#define MAX_DEPTH  40
+#define MAX_DEPTH  30
 #define MAX_OCTREE_SIZE 21
 #define NO_BLEED 0
 

@@ -1535,11 +1535,6 @@ void rasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePo
                   cube.sides[k][i][j].r = c.r;
                   cube.sides[k][i][j].g = c.g;
                   cube.sides[k][i][j].b = c.b;
-                  /*
-                     cube.sides[k][i][j].r = (c.r/area) * areas[k]/(dis * dis);
-                     cube.sides[k][i][j].g = (c.g/area) * areas[k]/(dis * dis);
-                     cube.sides[k][i][j].b = (c.b/area) * areas[k]/(dis * dis);
-                   */
                   cube.depth[k][i][j] = dis;
                }
             }
@@ -1810,11 +1805,6 @@ float evaluateSphericalHermonicsAreaAll( const CudaNode &node, const BoundingBox
 }
 Color evaluateSphericalHermonicsPower( const CudaNode &node, vec3 &centerToEye )
 {
-   /*float theta = acosf( centerToEye.y );
-   //centerToEye.x can be 0 but atanf can handle -inf and inf
-   float phi = atanf( centerToEye.y/centerToEye.x );
-   float * TYlm = getYLM( sinf(theta) *cosf(phi), sinf(theta) * sinf(phi), cosf(theta) );
-    */
    double * TYlm = getYLM( centerToEye.x, centerToEye.y, centerToEye.z );
    Color color;
    color.r = 0;

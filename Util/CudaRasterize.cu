@@ -22,6 +22,7 @@
 #include "cutil.h"
 #include <cuda.h>
 #include <curand_kernel.h>
+#include "OctreeType.h"
 #define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -40,7 +41,9 @@
 #define BOTTOM -1.0
 #define NPIXELS 8
 #define PI 3.141592
-#define THREADS 512 
+#define THREADS 512
+#define MAX_OCTREE_DEPTH 30
+#define MAX_ANGLE 0.05
 
 __device__ vec3 gpuCudaUnit(vec3 &in)
 {
@@ -269,7 +272,172 @@ __device__ void gpuGetAxisAlinedPoints(glm::vec4 ret[], vec3 position, float len
       ret[3] = glm::vec4( position.x - len, position.y, position.z - len, 1.0 );
    }
 }
+__device__ float squareDistanceGPU( vec3 &one, vec3 &two )
+{
+   return ((one.x-two.x)*(one.x-two.x) + (one.y-two.y)*(one.y-two.y) + (one.z-two.z)*(one.z-two.z));
+}
 
+__device__ float surfelHitTestGPU( Surfel s, Ray &ray )
+{
+   vec3 direction = gpuCudaUnit(ray.dir);
+   vec3 position;
+   vec3 normal = gpuCudaUnit(s.normal);
+
+   position.x = ray.pos.x;
+   position.y = ray.pos.y;
+   position.z = ray.pos.z;
+
+   float vd = gpuCudaDot(normal, direction);
+   if( vd > 0.001)
+      return -1;
+   float v0 = -(gpuCudaDot(position, normal) + s.distance );
+   float t = v0/vd;
+   if( t < 0.01)
+      return -1;
+
+   vec3 hitMark;
+   hitMark.x = ray.pos.x + direction.x*t;
+   hitMark.y = ray.pos.y + direction.y*t;
+   hitMark.z = ray.pos.z + direction.z*t;
+   float d = squareDistanceGPU( hitMark, s.pos );
+
+   if( d < s.radius*s.radius )
+      return t;
+   else
+      return -1;
+}
+__device__ float gpuEvaluateSphericalHermonicsArea( const CudaNode &node, vec3 &t )
+{
+   double TYlm[9];
+   TYlm[0] = 0.282095; //0 0
+   TYlm[1] = .488603 * -t.y;//1 -1
+   TYlm[2] = .488603 * t.z;//1 0
+   TYlm[3] = .488603 * -t.x; //1 1
+   TYlm[4] = 1.092548 * t.x * t.y; // 2 -2
+   TYlm[5] = 1.092548 * -t.y * t.z; //2 -1
+   TYlm[6] = 0.315392 * (3*t.z*t.z - 1); //2 0
+   TYlm[7] = 1.092548 * -t.x * t.z; //2 1
+   TYlm[8] = .546274 * (t.x*t.x - t.y*t.y); //2 2
+
+   float area = 0;
+
+   for( int i =0; i < 9; i++ )
+   {
+      area += node.hermonics.area[i] * TYlm[i];
+   }
+   area = fmax(area, 0);
+   return area;
+}
+
+__device__ float gpuEvaluateSphericalHermonicsAreaAll( const CudaNode &node, const BoundingBox &box,
+      const vec3 &position )
+{
+   vec3 points[8];
+   points[0] = box.min;
+   points[1] = box.min;
+   points[1].z = box.max.z;
+   points[2] = box.min;
+   points[2].y = box.max.y;
+   points[3] = box.min;
+   points[3].y = box.max.y;
+   points[3].z = box.max.z;
+   points[4] = box.min;
+   points[4].x = box.max.x;
+   points[5] = box.min;
+   points[5].x = box.max.x;
+   points[5].z = box.max.z;
+   points[6] = box.min;
+   points[6].x = box.max.x;
+   points[6].y = box.max.y;
+   points[7] = box.max;
+   float area = 0;
+
+   for(int i =0; i < 8; i++)
+   {
+      vec3 cte;
+      cte.x = position.x - points[i].x;
+      cte.y = position.y - points[i].y;
+      cte.z = position.z - points[i].z;
+      cte = gpuCudaUnit(cte);
+
+      float t = gpuEvaluateSphericalHermonicsArea( node, cte );
+      if (area < t )
+         area = t;
+   }
+   return area;
+}
+__device__ Color gpuEvaluateSphericalHermonicsPower( const CudaNode &node, vec3 &t )
+{
+   double TYlm[9];
+   TYlm[0] = 0.282095; //0 0
+   TYlm[1] = .488603 * -t.y;//1 -1
+   TYlm[2] = .488603 * t.z;//1 0
+   TYlm[3] = .488603 * -t.x; //1 1
+   TYlm[4] = 1.092548 * t.x * t.y; // 2 -2
+   TYlm[5] = 1.092548 * -t.y * t.z; //2 -1
+   TYlm[6] = 0.315392 * (3*t.z*t.z - 1); //2 0
+   TYlm[7] = 1.092548 * -t.x * t.z; //2 1
+   TYlm[8] = .546274 * (t.x*t.x - t.y*t.y); //2 2
+   Color color;
+   color.r = 0;
+   color.g = 0;
+   color.b = 0;
+
+   for( int i =0; i < 9; i++ )
+   {
+      color.r += node.hermonics.red[i] * TYlm[i];
+      color.g += node.hermonics.green[i] * TYlm[i];
+      color.b += node.hermonics.blue[i] * TYlm[i];
+   }
+   color.r = fmax( color.r, 0);
+   color.g = fmax( color.g, 0);
+   color.b = fmax( color.b, 0);
+   return color;
+}
+
+
+__device__ void gpuRaytraceSurfelToCube( RasterCube &cube, Surfel &surfel, vec3 ***cuberays, vec3 &position,
+      vec3 &normal )
+{
+   glm::vec4 wVecs[4];
+   gpuGetWVecs( wVecs );
+
+   for( int i = 0; i < 6; i++ )
+   {
+      for( int j = 0; j < 8; j ++ )
+      {
+         for( int k = 0; k < 8; k++ )
+         {
+            if( cube.depth[i][j][k] > 0 )
+            {
+               Ray ray;
+               ray.dir = cuberays[i][j][k];
+               ray.pos = position;
+
+               float t = surfelHitTestGPU( surfel, ray );
+               if( t > 0 && t < cube.depth[i][j][k] )
+               {
+                  vec3 hit;
+                  hit.x = ray.pos.x + ray.dir.x * t;
+                  hit.y = ray.pos.y + ray.dir.y * t;
+                  hit.z = ray.pos.z + ray.dir.z * t;
+                  vec3 diff;
+                  diff.x = position.x - hit.x;
+                  diff.y = position.y - hit.y;
+                  diff.z = position.z - hit.z;
+                  diff = gpuCudaUnit(diff);
+                  float dis = gpuDistance( hit, position );
+
+                  cube.depth[i][j][k] = dis;
+                  cube.sides[i][j][k].r = surfel.color.r;
+                  cube.sides[i][j][k].g = surfel.color.g;
+                  cube.sides[i][j][k].b = surfel.color.b;
+               }
+            }
+         }
+      }
+   }
+}
 __device__ void gpuRasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm::mat4 *cubetransforms,
       vec3 ***cuberays, vec3 &position, vec3 &normal, float dis )
 {
@@ -350,6 +518,109 @@ __device__ void gpuRasterizeSurfelToCube( RasterCube &cube, Surfel &surfel, glm:
                   cube.sides[k][i][j].r = surfel.color.r;
                   cube.sides[k][i][j].g = surfel.color.g;
                   cube.sides[k][i][j].b = surfel.color.b;
+                  cube.depth[k][i][j] = dis;
+               }
+            }
+         }
+      }
+   }
+}
+__device__ void gpuRasterizeClusterToCube( RasterCube &cube, Color &c, float area, vec3 nodePosition,
+      glm::mat4 *cubetransforms, vec3 ***cuberays, vec3 &position, vec3 &normal, float dis )
+{
+   glm::vec4 wVecs[4];
+   gpuGetWVecs( wVecs );
+
+   vec3 check;
+   check.x = position.x - nodePosition.x;
+   check.y = position.y - nodePosition.y;
+   check.z = position.z - nodePosition.z;
+   check = gpuCudaUnit(check);
+   if( gpuCudaDot(check, normal) > -0.001 )
+      return;
+   float areas[6];
+   for( int i =0; i < 6; i++ )
+   {
+      vec3 w;
+      w.x = wVecs[i][0];
+      w.y = wVecs[i][1];
+      w.z = wVecs[i][2];
+      if( gpuCudaDot( w, check ) > 0 )
+         areas[i] = gpuCudaDot( w, check) * area;
+      else
+         areas[i] = 0;
+   }
+
+   for( int k = 0; k< 6; k++ )
+   {
+      if( areas[k] <= 0 )
+         continue;
+      float length = sqrtf(areas[k]);
+
+      glm::vec4 points[4];
+      gpuGetAxisAlinedPoints( points, nodePosition, length/2.0, k );
+
+      points[0] = (cubetransforms[k]) * points[0];
+      points[1] = (cubetransforms[k]) * points[1];
+      points[2] = (cubetransforms[k]) * points[2];
+      points[3] = (cubetransforms[k]) * points[3];
+
+      for( int i = 0; i < 4; i++ )
+      {
+         points[i][0] /= points[i][3];
+         points[i][1] /= points[i][3];
+         points[i][2] /= points[i][3];
+         points[i][3] = 1;
+      }
+      int minX = 0;
+      int minY = 0;
+      int maxX = 0;
+      int maxY = 0;
+      minX = points[0][0];
+      maxX = points[0][0];
+      minY = points[0][1];
+      maxY = points[0][1];
+      float fminx = points[0][0];
+      float fmaxx = fminx;
+      float fminy = points[0][1];
+      float fmaxy = fminy;
+      for( int i = 1; i < 4; i++ )
+      {
+         fminx = fmin( fminx, points[i][0] );
+         fmaxx = fmax( fmaxx, points[i][0] );
+         fminy = fmin( fminy, points[i][1] );
+         fminy = fmin( fmaxy, points[i][1] );
+         if( minX > points[i][0] )
+            minX = roundf(points[i][0]+0.5);
+         if( minY > points[i][1] )
+            minY = roundf(points[i][1]+0.5);
+         if( maxX < points[i][0] )
+            maxX = roundf(points[i][0]+0.5);
+         if( maxY < points[i][1] )
+            maxY = roundf(points[i][1]+0.5);
+      }
+      if( fmaxx - fminx < 0.5 || fmaxy - fminy < 0.5 )
+      {
+         continue;
+      }
+      if( !(maxX < 0 || maxY < 0 || minY > 7 || minX > 7 ))
+      {
+         minX = max( minX, 0 );
+         minY = max( minY, 0 );
+         maxX = min( maxX, 7 );
+         maxY = min( maxY, 7 );
+
+         for( int i = minY; i <= maxY; i++ )
+         {
+            for( int j = minX; j <= maxX; j++ )
+            {
+               if (cube.depth[k][i][j] < 0)
+                  continue;
+               else if ( dis < cube.depth[k][i][j] )
+               {
+                  cube.sides[k][i][j].r = c.r;
+                  cube.sides[k][i][j].g = c.g;
+                  cube.sides[k][i][j].b = c.b;
                   cube.depth[k][i][j] = dis;
                }
             }
@@ -563,15 +834,15 @@ extern "C" Color *gpuSurfelColorBleeding( SurfelArray cpu_array, vec3 *positions
 
    int num_blocks = ceilf( (float)num /THREADS );
    /*
-   int batch_size = 1;
-   int batches = ceilf( (float)num_blocks/batch_size );
-   */
+      int batch_size = 1;
+      int batches = ceilf( (float)num_blocks/batch_size );
+    */
    dim3 dimBlock( THREADS );
    dim3 dimGrid( num_blocks );
 
    printf("GPU Surfel only Bleeding\n");
-      kernel_SharedSurfelBleed<<<dimGrid, dimBlock>>>( d_surfels, cpu_array.num, d_positions,
-            d_normals, d_indirect, num, 0, 0 );
+   kernel_SharedSurfelBleed<<<dimGrid, dimBlock>>>( d_surfels, cpu_array.num, d_positions,
+         d_normals, d_indirect, num, 0, 0 );
    CUDAERRORCHECK();
 
    CUDASAFECALL(cudaMemcpy( indirect, d_indirect, sizeof(Color) * num,
@@ -583,13 +854,10 @@ extern "C" Color *gpuSurfelColorBleeding( SurfelArray cpu_array, vec3 *positions
    return indirect;
 }
 
-/*
-
-   __device__ void gpuTraverseOctreeStack( RasterCube &cube, CudaNode *gpu_root, Surfel *gpu_array,
-   vec3 &position, vec3 normal, vec3 ***cuberays, glm::mat4 *cubetransforms )
-   {
+__device__ void gpuTraverseOctreeStack( RasterCube &cube, CudaNode *gpu_root, Surfel *gpu_array,
+      vec3 &position, vec3 normal, vec3 ***cuberays, glm::mat4 *cubetransforms )
+{
    float dis = 0;
-
    int stack[MAX_OCTREE_DEPTH * 8];
    int pointer = 0;
    stack[pointer] = 0;
@@ -597,70 +865,69 @@ extern "C" Color *gpuSurfelColorBleeding( SurfelArray cpu_array, vec3 *positions
 
    while( pointer )
    {
-   pointer--;
-   int current = stack[pointer];
+      pointer--;
+      int current = stack[pointer];
 
-   CudaNode node = gpu_root[current];
-   if( node.leaf )
-   {
-   for( int i = node.children[0]; i < node.children[1]; i++ )
-   {
-   Surfel s = gpu_array[i];
-   dis = gpuDistance( position, s.pos );
-   if ( dis < s.radius)
-   {
-   gpuRaytraceSurfelToCube( cube, s, cuberays, position, normal );
-   }
-   else
-   {
-   gpuRasterizeSurfelToCube( cube, s, cubetransforms, cuberays,
-   position, normal );
-   }
-   }
-   }
-   else
-   {
-   if( gpuBBInTest( node.box, position ) )
-   {
-   for(int i = 7; i <= 0; i-- )
-   {
-   stack[pointer] = node.children[i];
-   pointer++;
-   }
-   continue;
-   }
-   int horizon = gpuBelowHorizon( node.box, position, normal );
-   if( horizon == 8 )
-   continue;
+      CudaNode node = gpu_root[current];
+      if( node.leaf )
+      {
+         for( int i = node.children[0]; i < node.children[1]; i++ )
+         {
+            Surfel s = gpu_array[i];
+            dis = gpuDistance( position, s.pos );
+            if ( dis < s.radius)
+            {
+               gpuRaytraceSurfelToCube( cube, s, cuberays, position, normal );
+            }
+            else
+            {
+               gpuRasterizeSurfelToCube( cube, s, cubetransforms, cuberays,
+                     position, normal, dis );
+            }
+         }
+      }
+      else
+      {
+         if( gpuBBInTest( node.box, position ) )
+         {
+            for(int i = 7; i <= 0; i-- )
+            {
+               stack[pointer] = node.children[i];
+               pointer++;
+            }
+            continue;
+         }
+         int horizon = gpuBelowHorizon( node.box, position, normal );
+         if( horizon == 8 )
+            continue;
 
-   vec3 center = gpuGetCenter(node.box);
+         vec3 center = gpuGetCenter(node.box);
 
-   vec3 centerToEye;
-   centerToEye.x = position.x - center.x;
-   centerToEye.y = position.y - center.y;
-   centerToEye.z = position.z - center.z;
-   centerToEye = gpuUnit(centerToEye);
+         vec3 centerToEye;
+         centerToEye.x = position.x - center.x;
+         centerToEye.y = position.y - center.y;
+         centerToEye.z = position.z - center.z;
+         centerToEye = gpuCudaUnit(centerToEye);
 
-   dis = distance( position, center );
-   float area = gpuEvaluateSphericalHermonicsArea( node, centerToEye );
-   float solidangle = area / (dis * dis);
-   if( solidangle < MAX_ANGLE )
-   {
-   Color c = gpuEvaluateSphericalHermonicsPower( node, centerToEye );
-   gpuRasterizeClusterToCube( cube, c, area, center, cubetransforms, cuberays,
-   position, normal, dis );
-   continue;
+         dis = gpuDistance( position, center );
+         float area = gpuEvaluateSphericalHermonicsAreaAll( node, node.box, centerToEye );
+         float solidangle = area / (dis * dis);
+         if( solidangle < MAX_ANGLE )
+         {
+            Color c = gpuEvaluateSphericalHermonicsPower( node, centerToEye );
+            gpuRasterizeClusterToCube( cube, c, area, center, cubetransforms, cuberays,
+                  position, normal, dis );
+            continue;
+         }
+         else
+         {
+            for(int i = 7; i <= 0; i-- )
+            {
+               stack[pointer] = node.children[i];
+               pointer++;
+            }
+            continue;
+         }
+      }
    }
-   else
-   {
-   for(int i = 7; i <= 0; i-- )
-{
-   stack[pointer] = node.children[i];
-   pointer++;
 }
-continue;
-}
-}
-}
-}
-*/
